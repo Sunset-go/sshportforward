@@ -57,6 +57,53 @@ src-tauri/
 对外字段一律 **camelCase**（`#[serde(rename_all = "camelCase")]`）；
 命令参数 Rust 侧为 snake_case，Tauri 自动映射（前端传 `hostId` → 参数 `host_id`）。
 
+## 前端集成架构（2025-09-01 决策）
+
+### 数据加载与同步
+
+| 决策项 | 结论 |
+| --- | --- |
+| 初始加载时机 | 模块加载时调用 `list_hosts`，失败时 `hosts=[]` + 错误日志 |
+| currentHostId 初始化 | 选中列表第一个主机 |
+| 数据流架构 | 前端维护 reactive 副本，CRUD 时先更新本地 → 调后端 → 失败则记录错误并保持本地不变 |
+| 初始化失败行为 | 空状态 + 错误日志，**不使用 mock 数据兜底** |
+
+### CRUD 同步策略
+
+| 操作 | 策略 |
+| --- | --- |
+| 新增主机 | 后端生成 ID（`gen_id("host")`），用返回的 `HostProfileOut` 更新本地 |
+| 删除主机 | 后端先删，成功后再从本地 `splice` 并切换选中项 |
+| 行内编辑（`commitRuleEdit`） | 找到本地 rule，构造完整 `RuleInput` 调 `update_rule` |
+| 新增规则 | 后端生成 ID（`gen_id("r")`），返回 `ForwardRuleOut` 后再 `push` 到本地 |
+| 删除规则 | 后端先删，成功后再从本地 `splice` |
+| toggleRule | **延迟批量**：只更新本地 `rule.enabled`，不立即写 DB |
+| 批量保存 | 前端维护 `dirtyRules: Set<string>`，调用 `saveHost()` 时对 Set 遍历调 `update_rule`，成功后清空 Set |
+
+### 日志系统
+
+| 决策项 | 结论 |
+| --- | --- |
+| 日志来源 | **双写**：前端 `addLog` 同时写入本地内存 `state.logs[]` **和** 后端 DB（`invoke('add_log')`） |
+| 启动时日志加载 | 从本地开始，不加载后端历史；后端历史仅在用户手动 `invoke('read_logs')` 时拉取 |
+| `logsText()` | 仅使用本地 `state.logs[]`，不含后端历史 |
+
+### 连接状态同步
+
+| 决策项 | 结论 |
+| --- | --- |
+| 状态来源 | 前端 `state.connState` 为本地状态 |
+| 操作同步 | `start_tunnel` / `stop_tunnel` 成功后，调用 `get_conn_state` 读取后端真实状态并覆盖前端 |
+
+### 迁移完成标志
+
+- [x] `src/mock/mockData.ts` 已删除
+- [x] `useSshTunnel.ts` 不再导入 `mockHosts` / `mockConnectSequence` / `mockDisconnectSequence` / `pickMockKeyPath`
+- [x] 编译 `cargo check` 通过
+- [x] 前端类型检查 `vue-tsc --noEmit` 通过
+- [x] Vite 构建 `vite build` 通过
+- [ ] 开发态启动 `npm run tauri dev` 正常加载，空数据库时主机列表为空
+
 ## 后端命令清单（lib.rs invoke_handler 注册）
 
 | 命令 | 入参 | 返回 |

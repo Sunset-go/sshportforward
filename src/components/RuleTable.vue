@@ -9,6 +9,11 @@ const isRemote = () => state.activeRuleType === 'remote';
 const isDynamic = () => state.activeRuleType === 'dynamic';
 /** 连接已建立时锁定规则编辑 */
 const isLocked = computed(() => state.connState === 'connected');
+
+/** 行内编辑失焦包装函数 */
+async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' | 'note', value: string) {
+  await commitRuleEdit(id, field, value);
+}
 </script>
 
 <template>
@@ -40,7 +45,7 @@ const isLocked = computed(() => state.connState === 'connected');
             :value="r.listenAddr"
             :readonly="isLocked"
             placeholder="127.0.0.1:3080"
-            @blur="commitRuleEdit(r.id, 'listenAddr', ($event.target as HTMLInputElement).value)"
+            @blur="handleCommitEdit(r.id, 'listenAddr', ($event.target as HTMLInputElement).value)"
           />
         </div>
 
@@ -57,7 +62,7 @@ const isLocked = computed(() => state.connState === 'connected');
               :value="r.targetAddr"
               :readonly="isLocked"
               placeholder="127.0.0.1:3080"
-              @blur="commitRuleEdit(r.id, 'targetAddr', ($event.target as HTMLInputElement).value)"
+              @blur="handleCommitEdit(r.id, 'targetAddr', ($event.target as HTMLInputElement).value)"
             />
           </template>
         </div>
@@ -70,7 +75,7 @@ const isLocked = computed(() => state.connState === 'connected');
             :value="r.note"
             :readonly="isLocked"
             placeholder="—"
-            @blur="commitRuleEdit(r.id, 'note', ($event.target as HTMLInputElement).value)"
+            @blur="handleCommitEdit(r.id, 'note', ($event.target as HTMLInputElement).value)"
           />
         </div>
 
@@ -80,7 +85,7 @@ const isLocked = computed(() => state.connState === 'connected');
               <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
-          <button class="op-btn del" type="button" :title="t('rt.delete')" :disabled="isLocked" @click="removeRule(r.id)">
+          <button class="op-btn del" type="button" :title="t('rt.delete')" :disabled="isLocked" @click="async () => await removeRule(r.id)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
               <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
             </svg>

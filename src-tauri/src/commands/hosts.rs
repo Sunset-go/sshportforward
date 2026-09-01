@@ -1,7 +1,11 @@
 //! 主机 CRUD 命令。
+//!
+//! 敏感字段（password / key_path）落库前经 `crypto::encrypt` 加密，
+//! 返回给前端前经 `crypto::decrypt` 解密，接口层行为不变。
 
 use tauri::State;
 
+use crate::crypto;
 use crate::db::{db_err, gen_id, AppDb};
 use crate::models::{ForwardRuleOut, HostProfileOut, HostRow, RuleRow, SaveHostInput};
 
@@ -30,6 +34,14 @@ async fn get_host_row(db: &AppDb, id: &str) -> Result<HostRow, String> {
         .map_err(|e| db_err(e, "读取主机失败"))
 }
 
+/// 把数据库行转为对外 DTO，并解密敏感字段（历史明文原样透传）
+fn row_to_out(row: HostRow, rules: Vec<ForwardRuleOut>) -> Result<HostProfileOut, String> {
+    let mut out = row.into_out(rules);
+    out.password = crypto::decrypt(&out.password)?;
+    out.key_path = crypto::decrypt(&out.key_path)?;
+    Ok(out)
+}
+
 /// 列出全部主机（内嵌各自规则）
 #[tauri::command]
 pub async fn list_hosts(db: State<'_, AppDb>) -> Result<Vec<HostProfileOut>, String> {
@@ -40,7 +52,7 @@ pub async fn list_hosts(db: State<'_, AppDb>) -> Result<Vec<HostProfileOut>, Str
     let mut hosts = Vec::with_capacity(rows.len());
     for row in rows {
         let rules = load_rules(&db.0, &row.id).await?;
-        hosts.push(row.into_out(rules));
+        hosts.push(row_to_out(row, rules)?);
     }
     Ok(hosts)
 }
@@ -59,7 +71,7 @@ pub async fn get_host(
     match row {
         Some(r) => {
             let rules = load_rules(&db.0, &r.id).await?;
-            Ok(Some(r.into_out(rules)))
+            Ok(Some(row_to_out(r, rules)?))
         }
         None => Ok(None),
     }
@@ -71,6 +83,8 @@ pub async fn save_host(
     db: State<'_, AppDb>,
     input: SaveHostInput,
 ) -> Result<HostProfileOut, String> {
+    let enc_password = crypto::encrypt(&input.password)?;
+    let enc_key_path = crypto::encrypt(&input.key_path)?;
     let id = match &input.id {
         Some(id) if !id.is_empty() => {
             sqlx::query(
@@ -80,8 +94,8 @@ pub async fn save_host(
             .bind(&input.host)
             .bind(input.port)
             .bind(&input.username)
-            .bind(&input.password)
-            .bind(&input.key_path)
+            .bind(&enc_password)
+            .bind(&enc_key_path)
             .bind(id)
             .execute(&db.0)
             .await
@@ -98,8 +112,8 @@ pub async fn save_host(
             .bind(&input.host)
             .bind(input.port)
             .bind(&input.username)
-            .bind(&input.password)
-            .bind(&input.key_path)
+            .bind(&enc_password)
+            .bind(&enc_key_path)
             .execute(&db.0)
             .await
             .map_err(|e| db_err(e, "保存主机失败"))?;
@@ -108,7 +122,7 @@ pub async fn save_host(
     };
     let out = get_host_row(&db, &id).await?;
     let rules = load_rules(&db.0, &id).await?;
-    Ok(out.into_out(rules))
+    row_to_out(out, rules)
 }
 
 /// 删除主机（级联删除其全部规则）

@@ -6,7 +6,7 @@ import StatusDot from './StatusDot.vue';
 import LangSwitcher from './LangSwitcher.vue';
 import ThemeSwitcher from './ThemeSwitcher.vue';
 
-const { state, currentHost, selectHost, saveHost, deleteHost } = useSshTunnel();
+const { state, currentHost, selectHost, addHost, saveHost, deleteHost } = useSshTunnel();
 
 const isConnected = computed(() => state.connState === 'connected');
 
@@ -22,11 +22,11 @@ watch(
   { immediate: true },
 );
 
-function onSave() {
+async function onSave() {
   const h = currentHost.value;
   if (!h) return;
   h.name = hostName.value.trim() || t('common.unnamed');
-  saveHost();
+  await saveHost();
 }
 
 function toggleOpen() {
@@ -85,8 +85,9 @@ const label = computed(() => {
     </div>
 
     <div class="right">
+      <button class="btn" type="button" :disabled="isConnected" @click="async () => await addHost()">{{ t('hostbar.addHost') }}</button>
       <button class="btn" type="button" @click="onSave" :disabled="isConnected">{{ t('common.save') }}</button>
-      <button class="btn danger" type="button" @click="deleteHost" :disabled="isConnected">{{ t('common.delete') }}</button>
+      <button class="btn danger" type="button" :disabled="isConnected" @click="async () => await deleteHost()">{{ t('common.delete') }}</button>
       <LangSwitcher />
       <ThemeSwitcher />
     </div>
@@ -98,6 +99,7 @@ const label = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--gap);
   padding: 10px 14px;
   background: var(--bg-panel);
@@ -105,13 +107,13 @@ const label = computed(() => {
   border-radius: var(--radius);
   box-shadow: var(--panel-shadow);
 }
-.left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.left { display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap; }
 .title { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
 
-.dropdown { position: relative; }
+.dropdown { position: relative; flex-shrink: 0; }
 .host-select {
   display: flex; align-items: center; gap: 8px;
-  min-width: 220px;
+  min-width: 160px;
   padding: 6px 10px;
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -160,6 +162,7 @@ const label = computed(() => {
 .host-select:disabled { opacity: 0.45; cursor: not-allowed; }
 .name-input {
   width: 140px;
+  min-width: 90px;
   padding: 6px 10px;
   background: var(--bg-input);
   border: 1px solid var(--border);

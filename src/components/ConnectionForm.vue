@@ -26,8 +26,9 @@ const stopDisabled = computed(() => state.connState !== 'connected');
       </svg>
     </div>
 
-    <div class="body" v-show="!collapsed" v-if="currentHost">
-      <div class="form-grid">
+    <div v-show="!collapsed">
+      <div class="body" v-if="currentHost">
+        <div class="form-grid">
         <div class="field">
           <label>{{ t('conn.host') }}</label>
           <input type="text" v-model="currentHost.host" placeholder="192.168.1.100" :disabled="isConnected" />
@@ -86,7 +87,8 @@ const stopDisabled = computed(() => state.connState !== 'connected');
         <button class="btn" :disabled="stopDisabled" type="button" @click="stopTunnel">{{ t('conn.stop') }}</button>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 </template>
 
 <style scoped>
@@ -167,5 +169,12 @@ const stopDisabled = computed(() => state.connState !== 'connected');
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .body { flex-direction: column; }
+  .form-grid { grid-template-columns: 1fr; }
+  .actions { flex-direction: row; min-width: 0; }
+  .actions .btn { flex: 1; }
+}
 </style>
 

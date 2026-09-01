@@ -60,6 +60,7 @@ const messages: Record<Locale, Record<string, string>> = {
 
     'hostbar.title': '已保存主机',
     'hostbar.namePlaceholder': '主机名称',
+    'hostbar.addHost': '添加主机',
 
     'lang.title': '语言',
     'lang.zh': '简体中文',
@@ -139,6 +140,8 @@ const messages: Record<Locale, Record<string, string>> = {
     'logmsg.loading': '载入主机配置…',
     'logmsg.loaded': '已载入 {n} 个主机配置',
     'logmsg.waiting': '等待连接…',
+    'logmsg.createdDefaultHost': '已自动创建默认主机「{name}」',
+    'logmsg.addHost': '已添加主机「{name}」',
     'logmsg.resolveHost': '解析主机 {host} …',
     'logmsg.handshake': '正在握手并交换密钥…',
     'logmsg.auth': '正在认证用户身份（{user}）…',
@@ -164,6 +167,7 @@ const messages: Record<Locale, Record<string, string>> = {
 
     'hostbar.title': 'Saved Hosts',
     'hostbar.namePlaceholder': 'Host name',
+    'hostbar.addHost': 'Add Host',
 
     'lang.title': 'Language',
     'lang.zh': '简体中文',
@@ -243,6 +247,8 @@ const messages: Record<Locale, Record<string, string>> = {
     'logmsg.loading': 'Loading host config…',
     'logmsg.loaded': 'Loaded {n} host configs',
     'logmsg.waiting': 'Waiting for connection…',
+    'logmsg.createdDefaultHost': 'Created default host "{name}"',
+    'logmsg.addHost': 'Added host "{name}"',
     'logmsg.resolveHost': 'Resolving host {host} …',
     'logmsg.handshake': 'Performing handshake and exchanging keys…',
     'logmsg.auth': 'Authenticating user ({user})…',

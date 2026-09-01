@@ -35,8 +35,8 @@ watch(
   { immediate: true },
 );
 
-function handleSave(): void {
-  saveRuleEdit({
+async function handleSave(): Promise<void> {
+  await saveRuleEdit({
     type: formType.value,
     listenAddr: formListen.value,
     targetAddr: formTarget.value,

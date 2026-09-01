@@ -46,7 +46,7 @@ const tabs: { type: RuleType; flag: string }[] = [
     </div>
 
     <div class="panel-foot">
-      <button class="add-btn" type="button" :disabled="isLocked" @click="addRule">
+      <button class="add-btn" type="button" :disabled="isLocked" @click="async () => await addRule()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>

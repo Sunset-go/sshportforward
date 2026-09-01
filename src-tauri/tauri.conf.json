@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "sshportforward",
-        "width": 800,
-        "height": 600
+        "width": 910,
+        "height": 600,
+        "minWidth": 910,
+        "minHeight": 560
       }
     ],
     "security": {
