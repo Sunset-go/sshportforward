@@ -1,160 +1,109 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import HostBar from './components/HostBar.vue';
+import ConnectionForm from './components/ConnectionForm.vue';
+import PortForwardPanel from './components/PortForwardPanel.vue';
+import LogConsole from './components/LogConsole.vue';
+import { usePrefs } from './composables/usePrefs';
 
-const greetMsg = ref("");
-const name = ref("");
-
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
-}
+// 初始化语言与主题偏好（模块加载即应用 data-theme，避免闪烁）
+usePrefs();
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
-
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
-    </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
-
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-  </main>
+  <div class="app">
+    <HostBar />
+    <ConnectionForm />
+    <PortForwardPanel class="grow" />
+    <LogConsole class="grow log-grow" />
+  </div>
 </template>
 
 <style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-
-</style>
-<style>
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
+.app {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  gap: var(--gap);
+  height: 100vh;
+  padding: var(--gap);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.grow { flex: 1 1 0; min-height: 0; }
+.log-grow { flex: 1.1 1 0; }
+</style>
+
+<style>
+:root {
+  --bg-app: #0d1117;
+  --bg-panel: #161b22;
+  --bg-input: #0b0f14;
+  --border: #26303d;
+  --text: #c9d1d9;
+  --text-dim: #7d8590;
+  --accent: #2f81f7;
+  --accent-soft: rgba(47, 129, 247, 0.15);
+  --success: #3fb950;
+  --warn: #d29922;
+  --error: #f85149;
+  --radius: 6px;
+  --gap: 12px;
+
+  --border-soft: rgba(38, 48, 61, 0.5);
+  --accent-hover: rgba(47, 129, 247, 0.06);
+  --panel-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  --modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --log-info: #6e7b8b;
+  --log-success-text: #b6f0c0;
+  --log-warn-text: #f0d39a;
+  --log-error-text: #ffb3b0;
+
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background-color: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
+/* 浅色主题变量（覆盖深色默认值） */
+[data-theme='light'] {
+  --bg-app: #f6f8fa;
+  --bg-panel: #ffffff;
+  --bg-input: #ffffff;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --text-dim: #59636e;
+  --accent: #0969da;
+  --accent-soft: rgba(9, 105, 218, 0.12);
+  --success: #1a7f37;
+  --warn: #9a6700;
+  --error: #cf222e;
+
+  --border-soft: rgba(208, 215, 222, 0.65);
+  --accent-hover: rgba(9, 105, 218, 0.08);
+  --panel-shadow: 0 1px 3px rgba(31, 35, 40, 0.12), 0 1px 2px rgba(31, 35, 40, 0.06);
+  --modal-shadow: 0 8px 32px rgba(31, 35, 40, 0.2);
+  --log-info: #57606a;
+  --log-success-text: #1a7f37;
+  --log-warn-text: #7d4e00;
+  --log-error-text: #cf222e;
 }
 
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; padding: 0; }
+body { background: var(--bg-app); overflow: hidden; }
 
-.row {
-  display: flex;
-  justify-content: center;
-}
+input, button, select { font-family: inherit; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { opacity: 0.4; }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
+/* 全局细滚动条 */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
 }
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-
+*::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 </style>
