@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
+import { formatSpeed } from '../utils';
+import type { TrafficStat } from '../types';
 
 const { state, currentRules, toggleRule, removeRule, commitRuleEdit, openEditModal } = useSshTunnel();
 
@@ -9,6 +11,11 @@ const isRemote = () => state.activeRuleType === 'remote';
 const isDynamic = () => state.activeRuleType === 'dynamic';
 /** 连接已建立时锁定规则编辑 */
 const isLocked = computed(() => state.connState === 'connected');
+
+/** 指定规则的流量统计（无数据时返回 0） */
+function trafficOf(id: string): TrafficStat {
+  return state.traffic[id] ?? { up: 0, down: 0 };
+}
 
 /** 行内编辑失焦包装函数 */
 async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' | 'note', value: string) {
@@ -23,6 +30,8 @@ async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' |
       <div class="th c-listen">{{ isRemote() ? t('common.localAddr') : t('common.listenAddr') }}</div>
       <div class="th c-target">{{ isRemote() ? t('rt.targetRemote') : t('common.targetAddr') }}</div>
       <div class="th c-note">{{ t('common.note') }}</div>
+      <div class="th c-traffic">{{ t('rt.upload') }}</div>
+      <div class="th c-traffic">{{ t('rt.download') }}</div>
       <div class="th c-op">{{ t('common.actions') }}</div>
     </div>
 
@@ -79,6 +88,9 @@ async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' |
           />
         </div>
 
+        <div class="td c-traffic">{{ formatSpeed(trafficOf(r.id).up) }}</div>
+        <div class="td c-traffic">{{ formatSpeed(trafficOf(r.id).down) }}</div>
+
         <div class="td c-op">
           <button class="op-btn edit" type="button" :title="t('rt.edit')" :disabled="isLocked" @click="openEditModal(r.id)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -99,7 +111,7 @@ async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' |
 <style scoped>
 .rule-table { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; }
 .thead {
-  display: grid; grid-template-columns: 56px 1fr 1fr 1fr 84px;
+  display: grid; grid-template-columns: 56px 1fr 1fr 1fr 90px 90px 84px;
   align-items: center; padding: 8px 14px;
   background: var(--bg-app);
   border-bottom: 1px solid var(--border);
@@ -108,7 +120,7 @@ async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' |
 .th { color: var(--text-dim); font-size: 12px; font-weight: 500; }
 .tbody { flex: 1; min-height: 0; overflow-y: auto; }
 .tr {
-  display: grid; grid-template-columns: 56px 1fr 1fr 1fr 84px;
+  display: grid; grid-template-columns: 56px 1fr 1fr 1fr 90px 90px 84px;
   align-items: center; padding: 6px 14px;
   border-bottom: 1px solid var(--border-soft);
   transition: background 0.12s;
@@ -149,6 +161,14 @@ async function handleCommitEdit(id: string, field: 'listenAddr' | 'targetAddr' |
 .check input:disabled + .box { opacity: 0.4; cursor: default; }
 
 .c-op { display: flex; align-items: center; gap: 4px; }
+.c-traffic {
+  text-align: right;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  padding-right: 12px;
+  white-space: nowrap;
+}
 .op-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px; border-radius: 4px;

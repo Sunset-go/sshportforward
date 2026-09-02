@@ -6,8 +6,8 @@ import type { RuleType } from '../types';
 import RuleTable from './RuleTable.vue';
 import RuleEditModal from './RuleEditModal.vue';
 
-const { state, setActiveRuleType, addRule } = useSshTunnel();
-const isLocked = computed(() => state.connState === 'connected');
+const { state, currentHostIsDraft, setActiveRuleType, addRule } = useSshTunnel();
+const isLocked = computed(() => state.connState === 'connected' || currentHostIsDraft.value);
 
 const collapsed = ref(false);
 

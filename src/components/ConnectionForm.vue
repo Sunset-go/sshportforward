@@ -3,16 +3,11 @@ import { computed, ref } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 
-const { state, currentHost, toggleShowPassword, pickKeyFile, startTunnel, stopTunnel } = useSshTunnel();
+const { state, currentHost, addHost, saveHost, deleteHost, toggleShowPassword, pickKeyFile } = useSshTunnel();
 
 const collapsed = ref(false);
 
-const isConnecting = computed(() => state.connState === 'connecting' || state.connState === 'disconnecting');
 const isConnected = computed(() => state.connState === 'connected');
-const startDisabled = computed(
-  () => state.connState === 'connecting' || state.connState === 'connected' || state.connState === 'disconnecting',
-);
-const stopDisabled = computed(() => state.connState !== 'connected');
 </script>
 
 <template>
@@ -80,11 +75,9 @@ const stopDisabled = computed(() => state.connState !== 'connected');
       </div>
 
       <div class="actions">
-        <button class="btn primary" :disabled="startDisabled" type="button" @click="startTunnel">
-          <span v-if="isConnecting" class="spinner"></span>
-          {{ state.connState === 'connecting' ? t('conn.connecting') : t('conn.start') }}
-        </button>
-        <button class="btn" :disabled="stopDisabled" type="button" @click="stopTunnel">{{ t('conn.stop') }}</button>
+        <button class="btn" type="button" :disabled="isConnected" @click="addHost()">{{ t('hostbar.addHost') }}</button>
+        <button class="btn" type="button" :disabled="isConnected" @click="saveHost()">{{ t('common.save') }}</button>
+        <button class="btn danger" type="button" :disabled="isConnected" @click="deleteHost()">{{ t('common.delete') }}</button>
       </div>
     </div>
   </div>
@@ -162,13 +155,7 @@ const stopDisabled = computed(() => state.connState !== 'connected');
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
-
-.spinner {
-  width: 13px; height: 13px;
-  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
-  border-radius: 50%; animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+.btn.danger:hover:not(:disabled) { border-color: var(--error); color: var(--error); }
 
 @media (max-width: 640px) {
   .body { flex-direction: column; }

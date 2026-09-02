@@ -1,102 +1,86 @@
 //! 隧道启动/关闭、连接状态机与私钥选择命令。
-//!
-//! 当前为 mock 实现：模拟握手耗时与状态流转，不建立真实 SSH 通道。
 
-use std::time::Duration;
+use std::collections::HashMap;
 
 use tauri::State;
 
-use crate::db::{db_err, AppConnState, AppDb};
+use crate::db::{AppConnState, AppDb};
+use crate::models::TrafficStat;
+use crate::ssh::{self, SshConfig, TunnelState};
 
-use super::hosts::load_rules;
+use super::hosts::{get_host_row, load_rules};
 
 /// 查询当前连接状态（`idle` / `connecting` / `connected` / `disconnecting` / `error`）
 #[tauri::command]
 pub fn get_conn_state(conn: State<'_, AppConnState>) -> String {
-    conn.0.read().unwrap().clone()
+    conn.0
+        .read()
+        .expect("连接状态锁已中毒")
+        .clone()
 }
 
-/// 手动设置连接状态（通常由前端状态机驱动）
-#[tauri::command]
-pub fn set_conn_state(conn: State<'_, AppConnState>, state: String) -> bool {
-    *conn.0.write().unwrap() = state;
-    true
+fn set_state(conn: &AppConnState, state: &str) {
+    *conn.0.write().expect("连接状态锁已中毒") = state.to_string();
 }
 
-async fn write_log(pool: &sqlx::SqlitePool, level: &str, message: &str) -> Result<(), String> {
-    sqlx::query("INSERT INTO logs (level, message) VALUES (?, ?)")
-        .bind(level)
-        .bind(message)
-        .execute(pool)
-        .await
-        .map_err(|e| db_err(e, "写入日志失败"))?;
-    Ok(())
-}
-
-/// 启动隧道（mock）：握手 → 认证 → 成功，并对主机的启用规则逐个写 established 日志
+/// 启动隧道：从加密库读取主机凭据并建立真实 SSH 会话，随后为启用规则建立转发
 #[tauri::command]
 pub async fn start_tunnel(
     db: State<'_, AppDb>,
     conn: State<'_, AppConnState>,
+    tunnel: State<'_, TunnelState>,
     host_id: String,
-    host: String,
-    port: i64,
-    username: String,
 ) -> Result<(), String> {
-    {
-        let mut s = conn.0.write().unwrap();
-        *s = String::from("connecting");
-    }
-    write_log(&db.0, "INFO", &format!("连接 {host}:{port}（用户 {username}）")).await?;
-    tokio::time::sleep(Duration::from_millis(1500)).await;
+    set_state(&conn, "connecting");
 
-    {
-        let mut s = conn.0.write().unwrap();
-        *s = String::from("connected");
-    }
-    write_log(&db.0, "SUCCESS", &format!("已连接 {host}:{port}")).await?;
-
+    let row = get_host_row(&db, &host_id).await?;
+    let config = SshConfig {
+        host: row.host.clone(),
+        port: row.port as u16,
+        username: row.username.clone(),
+        password: crate::crypto::decrypt(&row.password)?,
+        key_path: crate::crypto::decrypt(&row.key_path)?,
+    };
     let rules = load_rules(&db.0, &host_id).await?;
-    for rule in rules.iter().filter(|r| r.enabled) {
-        let flag = match rule.rule_type.as_str() {
-            "local" => "-L",
-            "remote" => "-R",
-            _ => "-D",
-        };
-        let arrow = if rule.target_addr.is_empty() {
-            String::new()
-        } else {
-            format!(" → {}", rule.target_addr)
-        };
-        write_log(
-            &db.0,
-            "SUCCESS",
-            &format!("已建立转发 [{flag}] {}{arrow}", rule.listen_addr),
-        )
-        .await?;
+
+    match ssh::start(config, rules).await {
+        Ok((session, traffic)) => {
+            *tunnel.session.lock().expect("隧道会话锁已中毒") = Some(session);
+            *tunnel.traffic.lock().expect("隧道流量锁已中毒") = traffic;
+            set_state(&conn, "connected");
+            Ok(())
+        }
+        Err(e) => {
+            set_state(&conn, "error");
+            Err(e)
+        }
     }
-    Ok(())
 }
 
-/// 关闭隧道（mock）
+/// 查询当前隧道各规则的上传/下载流量（字节），规则 id 为键
+#[tauri::command]
+pub fn get_traffic(tunnel: State<'_, TunnelState>) -> Result<HashMap<String, TrafficStat>, String> {
+    let map = tunnel.traffic.lock().expect("隧道流量锁已中毒");
+    Ok(map
+        .iter()
+        .map(|(id, cell)| {
+            let (up, down) = cell.snapshot();
+            (id.clone(), TrafficStat { up, down })
+        })
+        .collect())
+}
+
+/// 关闭隧道：通知转发任务退出并关闭 SSH 会话
 #[tauri::command]
 pub async fn stop_tunnel(
-    db: State<'_, AppDb>,
     conn: State<'_, AppConnState>,
-    host_id: String,
+    tunnel: State<'_, TunnelState>,
 ) -> Result<(), String> {
-    {
-        let mut s = conn.0.write().unwrap();
-        *s = String::from("disconnecting");
+    set_state(&conn, "disconnecting");
+    if let Some(session) = tunnel.session.lock().expect("隧道会话锁已中毒").take() {
+        session.shutdown();
     }
-    write_log(&db.0, "INFO", "正在关闭隧道…").await?;
-    tokio::time::sleep(Duration::from_millis(800)).await;
-
-    {
-        let mut s = conn.0.write().unwrap();
-        *s = String::from("idle");
-    }
-    write_log(&db.0, "SUCCESS", &format!("主机 {host_id} 的隧道已关闭")).await?;
+    set_state(&conn, "idle");
     Ok(())
 }
 

@@ -18,7 +18,11 @@ pub struct AppDb(pub SqlitePool);
 /// 取值：`idle` / `connecting` / `connected` / `disconnecting` / `error`
 pub struct AppConnState(pub RwLock<String>);
 
-const MIGRATION_SQL: &str = include_str!("../db/migrations/001_init.sql");
+/// 迁移列表：`(版本号, SQL)`。版本号为纯数字字符串，按顺序递增；
+/// 新增迁移时在此追加即可，启动时仅执行大于当前 `PRAGMA user_version` 的项。
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("1", include_str!("../db/migrations/001_init.sql")),
+];
 
 /// 打开应用数据目录下的 SQLite 库并执行迁移，返回连接池。
 pub async fn init_db(app: &AppHandle) -> Result<SqlitePool, Box<dyn std::error::Error>> {
@@ -33,21 +37,86 @@ pub async fn init_db(app: &AppHandle) -> Result<SqlitePool, Box<dyn std::error::
         .foreign_keys(true);
 
     let pool = SqlitePoolOptions::new().connect_with(options).await?;
-    run_migration_sql(&pool).await?;
+    run_migrations(&pool).await?;
     Ok(pool)
 }
 
-/// 执行 `db/migrations/001_init.sql`：按分号分割逐条执行，
-/// 兼容 SQLite 对多语句 prepared statement 的限制。
-async fn run_migration_sql(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    for stmt in MIGRATION_SQL.split(';') {
-        let stmt = stmt.trim();
-        if stmt.is_empty() {
+/// 按 `PRAGMA user_version` 版本化执行迁移，只跑版本号更大的迁移。
+async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    let current: i64 = sqlx::query_scalar("PRAGMA user_version")
+        .fetch_one(pool)
+        .await?;
+
+    for (version, sql) in MIGRATIONS {
+        let ver: i64 = version
+            .parse()
+            .map_err(|_| sqlx::Error::Protocol("非法迁移版本号".into()))?;
+        if ver <= current {
             continue;
         }
-        sqlx::query(stmt).execute(pool).await?;
+        for stmt in split_sql(sql) {
+            sqlx::query(stmt).execute(pool).await?;
+        }
+        // 逐版本写回，保证迁移失败时版本号不虚增
+        sqlx::query(&format!("PRAGMA user_version = {ver}"))
+            .execute(pool)
+            .await?;
     }
     Ok(())
+}
+
+/// 分号感知的 SQL 拆分：忽略单引号字符串字面量与 `--` 行注释内的分号。
+/// 兼容 SQLite 对多语句 prepared statement 的限制。
+fn split_sql(sql: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    let mut in_string = false;
+    let mut in_line_comment = false;
+    let bytes = sql.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if c == '\'' {
+                // SQL 字符串内转义的单引号 '' 跳过
+                if i + 1 < bytes.len() && bytes[i + 1] == b'\'' {
+                    i += 2;
+                    continue;
+                }
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            '\'' => in_string = true,
+            '-' if i + 1 < bytes.len() && bytes[i + 1] == b'-' => {
+                in_line_comment = true;
+                i += 1;
+            }
+            ';' => {
+                let stmt = sql[start..i].trim();
+                if !stmt.is_empty() {
+                    out.push(stmt);
+                }
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let tail = sql[start..].trim();
+    if !tail.is_empty() {
+        out.push(tail);
+    }
+    out
 }
 
 /// 统一格式化数据库错误信息
@@ -74,6 +143,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn split_sql_ignores_semicolons_in_strings_and_comments() {
+        let sql = "CREATE TABLE a (x TEXT DEFAULT 'a;b'); -- comment; here\nINSERT INTO a (x) VALUES ('1');";
+        let stmts = split_sql(sql);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("'a;b'"));
+        assert!(stmts[1].contains("INSERT"));
+    }
+
+    #[test]
     fn migration_sql_runs_and_cascade_deletes_rules() {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -90,7 +168,7 @@ mod tests {
                 .unwrap();
 
             // 迁移 SQL 整体可执行
-            run_migration_sql(&pool).await.unwrap();
+            run_migrations(&pool).await.unwrap();
 
             // 字符串主键可插入
             sqlx::query(

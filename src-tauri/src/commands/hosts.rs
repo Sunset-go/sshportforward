@@ -26,7 +26,8 @@ pub async fn load_rules(
     Ok(rows.into_iter().map(RuleRow::into_out).collect())
 }
 
-async fn get_host_row(db: &AppDb, id: &str) -> Result<HostRow, String> {
+/// 查询某主机的数据库行（敏感字段仍为密文，调用方需自行解密）
+pub(crate) async fn get_host_row(db: &AppDb, id: &str) -> Result<HostRow, String> {
     sqlx::query_as::<_, HostRow>(&format!("{SELECT_HOST_SQL} WHERE id = ?"))
         .bind(id)
         .fetch_one(&db.0)
@@ -55,26 +56,6 @@ pub async fn list_hosts(db: State<'_, AppDb>) -> Result<Vec<HostProfileOut>, Str
         hosts.push(row_to_out(row, rules)?);
     }
     Ok(hosts)
-}
-
-/// 查询单个主机（含规则）
-#[tauri::command]
-pub async fn get_host(
-    db: State<'_, AppDb>,
-    host_id: String,
-) -> Result<Option<HostProfileOut>, String> {
-    let row = sqlx::query_as::<_, HostRow>(&format!("{SELECT_HOST_SQL} WHERE id = ?"))
-        .bind(&host_id)
-        .fetch_optional(&db.0)
-        .await
-        .map_err(|e| db_err(e, "查询主机失败"))?;
-    match row {
-        Some(r) => {
-            let rules = load_rules(&db.0, &r.id).await?;
-            Ok(Some(row_to_out(r, rules)?))
-        }
-        None => Ok(None),
-    }
 }
 
 /// 保存主机：`input.id` 非空且存在则更新，否则新建，返回完整主机（含规则）

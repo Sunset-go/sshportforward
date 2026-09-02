@@ -36,6 +36,12 @@ export interface HostProfile {
   rules: ForwardRule[];
 }
 
+/** 单条规则的流量统计（字节） */
+export interface TrafficStat {
+  up: number;
+  down: number;
+}
+
 /** 单条日志 */
 export interface LogEntry {
   id: number;

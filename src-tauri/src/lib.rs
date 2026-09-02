@@ -4,6 +4,7 @@ mod commands;
 mod crypto;
 mod db;
 mod models;
+mod ssh;
 
 use tauri::Manager;
 
@@ -20,23 +21,20 @@ pub fn run() {
             tauri::async_runtime::block_on(migrate_plaintext_hosts(&pool))?;
             app.manage(db::AppDb(pool));
             app.manage(db::AppConnState(std::sync::RwLock::new(String::from("idle"))));
+            app.manage(ssh::TunnelState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::hosts::list_hosts,
-            commands::hosts::get_host,
             commands::hosts::save_host,
             commands::hosts::delete_host,
-            commands::rules::list_rules,
             commands::rules::add_rule,
             commands::rules::update_rule,
             commands::rules::delete_rule,
             commands::logs::add_log,
-            commands::logs::list_logs,
             commands::logs::clear_logs,
-            commands::logs::read_logs,
             commands::tunnel::get_conn_state,
-            commands::tunnel::set_conn_state,
+            commands::tunnel::get_traffic,
             commands::tunnel::start_tunnel,
             commands::tunnel::stop_tunnel,
             commands::tunnel::pick_key_file,

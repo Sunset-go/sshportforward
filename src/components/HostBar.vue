@@ -1,33 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 import StatusDot from './StatusDot.vue';
 import LangSwitcher from './LangSwitcher.vue';
 import ThemeSwitcher from './ThemeSwitcher.vue';
 
-const { state, currentHost, selectHost, addHost, saveHost, deleteHost } = useSshTunnel();
+const { state, currentHost, selectHost, startTunnel, stopTunnel } = useSshTunnel();
 
 const isConnected = computed(() => state.connState === 'connected');
+const isConnecting = computed(() => state.connState === 'connecting' || state.connState === 'disconnecting');
+const startDisabled = computed(
+  () => state.connState === 'connecting' || state.connState === 'connected' || state.connState === 'disconnecting',
+);
+const stopDisabled = computed(() => state.connState !== 'connected');
 
 const open = ref(false);
 const rootRef = ref<HTMLElement | null>(null);
-const hostName = ref('');
-
-watch(
-  () => state.currentHostId,
-  () => {
-    hostName.value = currentHost.value?.name ?? '';
-  },
-  { immediate: true },
-);
-
-async function onSave() {
-  const h = currentHost.value;
-  if (!h) return;
-  h.name = hostName.value.trim() || t('common.unnamed');
-  await saveHost();
-}
 
 function toggleOpen() {
   open.value = !open.value;
@@ -74,7 +63,7 @@ const label = computed(() => {
       <input
         class="name-input"
         type="text"
-        v-model="hostName"
+        v-model="state.hostName"
         :placeholder="t('hostbar.namePlaceholder')"
         :disabled="isConnected"
       />
@@ -85,9 +74,11 @@ const label = computed(() => {
     </div>
 
     <div class="right">
-      <button class="btn" type="button" :disabled="isConnected" @click="async () => await addHost()">{{ t('hostbar.addHost') }}</button>
-      <button class="btn" type="button" @click="onSave" :disabled="isConnected">{{ t('common.save') }}</button>
-      <button class="btn danger" type="button" :disabled="isConnected" @click="async () => await deleteHost()">{{ t('common.delete') }}</button>
+      <button class="btn primary start-btn" type="button" :disabled="startDisabled" @click="startTunnel">
+        <span v-if="isConnecting" class="spinner"></span>
+        {{ state.connState === 'connecting' ? t('conn.connecting') : t('conn.start') }}
+      </button>
+      <button class="btn" type="button" :disabled="stopDisabled" @click="stopTunnel">{{ t('conn.stop') }}</button>
       <LangSwitcher />
       <ThemeSwitcher />
     </div>
@@ -113,7 +104,8 @@ const label = computed(() => {
 .dropdown { position: relative; flex-shrink: 0; }
 .host-select {
   display: flex; align-items: center; gap: 8px;
-  min-width: 160px;
+  width: 220px;
+  flex-shrink: 0;
   padding: 6px 10px;
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -131,7 +123,7 @@ const label = computed(() => {
 
 .menu {
   position: absolute; z-index: 20; margin-top: 4px;
-  min-width: 240px;
+  width: 220px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -159,6 +151,9 @@ const label = computed(() => {
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn.danger:hover:not(:disabled) { border-color: var(--error); color: var(--error); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+.start-btn { min-width: 76px; }
 .host-select:disabled { opacity: 0.45; cursor: not-allowed; }
 .name-input {
   width: 140px;
@@ -173,4 +168,11 @@ const label = computed(() => {
 }
 .name-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .name-input:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.spinner {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

@@ -102,6 +102,13 @@ pub struct RuleInput {
     pub note: String,
 }
 
+/// 单条规则的流量统计（字节），返回给前端
+#[derive(Debug, Clone, Serialize)]
+pub struct TrafficStat {
+    pub up: u64,
+    pub down: u64,
+}
+
 impl HostRow {
     pub fn into_out(self, rules: Vec<ForwardRuleOut>) -> HostProfileOut {
         HostProfileOut {

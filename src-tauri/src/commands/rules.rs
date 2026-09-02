@@ -5,8 +5,6 @@ use tauri::State;
 use crate::db::{db_err, gen_id, AppDb};
 use crate::models::{ForwardRuleOut, RuleInput, RuleRow};
 
-use super::hosts::load_rules;
-
 const SELECT_RULE_SQL: &str =
     "SELECT id, rule_type, enabled, listen_addr, target_addr, note FROM forward_rules WHERE id = ? AND host_id = ?";
 
@@ -18,15 +16,6 @@ async fn get_rule(db: &AppDb, rule_id: &str, host_id: &str) -> Result<ForwardRul
         .await
         .map_err(|e| db_err(e, "读取规则失败"))?;
     Ok(row.into_out())
-}
-
-/// 列出指定主机的全部规则
-#[tauri::command]
-pub async fn list_rules(
-    db: State<'_, AppDb>,
-    host_id: String,
-) -> Result<Vec<ForwardRuleOut>, String> {
-    load_rules(&db.0, &host_id).await
 }
 
 /// 新增规则（自动生成 `r-` 前缀的字符串 id）
