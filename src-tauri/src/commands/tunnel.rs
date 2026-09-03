@@ -2,9 +2,9 @@
 
 use std::collections::HashMap;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
-use crate::commands::settings::CLOSE_TO_TRAY_KEY;
+use crate::commands::settings::{ask_enable_tray_after_connect, CLOSE_TO_TRAY_KEY};
 use crate::db::{self, AppConnState, AppDb};
 use crate::models::TrafficStat;
 use crate::ssh::{self, SshConfig, TunnelState};
@@ -58,7 +58,7 @@ pub async fn start_tunnel(
                 .ok()
                 .flatten();
             if pref.as_deref() != Some("tray") {
-                let _ = app.emit("ask-start-tray", ());
+                ask_enable_tray_after_connect(app).await;
             }
             Ok(())
         }

@@ -9,7 +9,7 @@ mod ssh;
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, WindowEvent,
+    Manager, WindowEvent,
 };
 
 use commands::settings::CLOSE_TO_TRAY_KEY;
@@ -96,32 +96,17 @@ pub fn run() {
             app.manage(db::AppDb(pool));
             app.manage(db::AppConnState(std::sync::RwLock::new(String::from("idle"))));
             app.manage(ssh::TunnelState::default());
+            app.manage(commands::settings::UiLocale(std::sync::Mutex::new(String::from("zh"))));
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 拦截关闭：按数据库中记录的 close_to_tray 偏好决定隐藏到托盘还是退出；
-            // 未配置时通知前端弹窗询问
+            // 拦截关闭：已记录偏好直接执行；无偏好时弹原生对话框询问（不依赖前端是否就绪）
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let app = window.app_handle();
-                let db = app.state::<db::AppDb>();
-                let pref = tauri::async_runtime::block_on(db::get_setting(&db.0, CLOSE_TO_TRAY_KEY))
-                    .ok()
-                    .flatten();
-                match pref.as_deref() {
-                    Some("tray") => {
-                        api.prevent_close();
-                        if let Some(win) = app.get_webview_window("main") {
-                            let _ = win.hide();
-                        }
-                    }
-                    Some("exit") => {
-                        // 放行关闭，应用退出
-                    }
-                    _ => {
-                        api.prevent_close();
-                        let _ = app.emit("ask-close-behavior", ());
-                    }
-                }
+                api.prevent_close();
+                let app = window.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    commands::settings::handle_close_requested(app).await;
+                });
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -140,8 +125,7 @@ pub fn run() {
             commands::tunnel::pick_key_file,
             commands::settings::get_app_setting,
             commands::settings::set_app_setting,
-            commands::settings::hide_main_window,
-            commands::settings::exit_app,
+            commands::settings::set_ui_locale,
             commands::settings::set_tray_texts,
         ])
         .run(tauri::generate_context!())

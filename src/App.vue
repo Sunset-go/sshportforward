@@ -3,7 +3,7 @@ import HostBar from './components/HostBar.vue';
 import ConnectionForm from './components/ConnectionForm.vue';
 import PortForwardPanel from './components/PortForwardPanel.vue';
 import LogConsole from './components/LogConsole.vue';
-import CloseBehaviorDialog from './components/CloseBehaviorDialog.vue';
+import TraySync from './components/TraySync.vue';
 import { usePrefs } from './composables/usePrefs';
 
 // 初始化语言与主题偏好（模块加载即应用 data-theme，避免闪烁）
@@ -16,7 +16,7 @@ usePrefs();
     <ConnectionForm />
     <PortForwardPanel class="grow" />
     <LogConsole class="grow log-grow" />
-    <CloseBehaviorDialog />
+    <TraySync />
   </div>
 </template>
 
