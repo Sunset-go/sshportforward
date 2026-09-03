@@ -22,6 +22,7 @@ pub struct AppConnState(pub RwLock<String>);
 /// 新增迁移时在此追加即可，启动时仅执行大于当前 `PRAGMA user_version` 的项。
 const MIGRATIONS: &[(&str, &str)] = &[
     ("1", include_str!("../db/migrations/001_init.sql")),
+    ("2", include_str!("../db/migrations/002_settings.sql")),
 ];
 
 /// 打开应用数据目录下的 SQLite 库并执行迁移，返回连接池。
@@ -122,6 +123,28 @@ fn split_sql(sql: &str) -> Vec<&str> {
 /// 统一格式化数据库错误信息
 pub fn db_err(e: sqlx::Error, ctx: &str) -> String {
     format!("{ctx}: {e}")
+}
+
+/// 读取应用设置（app_settings 表），键不存在时返回 None。
+pub async fn get_setting(pool: &SqlitePool, key: &str) -> Result<Option<String>, sqlx::Error> {
+    let value: Option<(String,)> = sqlx::query_as("SELECT value FROM app_settings WHERE key = ?1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+    Ok(value.map(|(v,)| v))
+}
+
+/// 写入应用设置（存在则覆盖）。
+pub async fn set_setting(pool: &SqlitePool, key: &str, value: &str) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO app_settings (key, value) VALUES (?1, ?2) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .bind(key)
+    .bind(value)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 /// 生成全局唯一 id（时间戳 + 单调自增，前缀 `host-` / `r-`，匹配前端 mock 的字符串 id 风格）

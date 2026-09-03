@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# 本地工具缓存
+.mimosa/
+.zcode/

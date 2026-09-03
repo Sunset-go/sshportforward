@@ -157,6 +157,15 @@ const messages: Record<Locale, Record<string, string>> = {
     'logmsg.err.disconnect': '断开失败',
     'logmsg.err.pickKey': '选择私钥失败',
     'logmsg.err.loadHosts': '加载主机列表失败',
+
+    'tray.show': '显示主窗口',
+    'tray.closeToTray': '关闭时最小化到托盘',
+    'tray.quit': '退出',
+
+    'closeDlg.title': '关闭程序',
+    'closeDlg.message': '是否将程序最小化到系统托盘？此选择将被记住，之后关闭窗口不再询问；可随时在托盘菜单中修改。',
+    'closeDlg.toTray': '最小化到托盘',
+    'closeDlg.exit': '退出程序',
   },
   en: {
     'common.save': 'Save',
@@ -275,6 +284,15 @@ const messages: Record<Locale, Record<string, string>> = {
     'logmsg.err.disconnect': 'Disconnect failed',
     'logmsg.err.pickKey': 'Failed to select private key',
     'logmsg.err.loadHosts': 'Failed to load hosts',
+
+    'tray.show': 'Show Main Window',
+    'tray.closeToTray': 'Minimize to Tray on Close',
+    'tray.quit': 'Quit',
+
+    'closeDlg.title': 'Close Application',
+    'closeDlg.message': 'Minimize to the system tray instead of exiting? This choice will be remembered and you will not be asked again; you can change it anytime from the tray menu.',
+    'closeDlg.toTray': 'Minimize to Tray',
+    'closeDlg.exit': 'Exit',
   },
 };
 
