@@ -16,12 +16,22 @@ pub async fn get_app_setting(db: State<'_, AppDb>, key: String) -> Result<Option
         .map_err(|e| crate::db::db_err(e, "读取设置失败"))
 }
 
-/// 写入应用设置（存在则覆盖）
+/// 写入应用设置（存在则覆盖）；写入关闭行为时同步托盘菜单勾选态
 #[tauri::command]
-pub async fn set_app_setting(db: State<'_, AppDb>, key: String, value: String) -> Result<(), String> {
+pub async fn set_app_setting(
+    app: AppHandle,
+    db: State<'_, AppDb>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
     crate::db::set_setting(&db.0, &key, &value)
         .await
-        .map_err(|e| crate::db::db_err(e, "写入设置失败"))
+        .map_err(|e| crate::db::db_err(e, "写入设置失败"))?;
+    if key == CLOSE_TO_TRAY_KEY {
+        let menu = app.state::<crate::TrayMenuState>().inner();
+        let _ = menu.close_to_tray.set_checked(value == "tray");
+    }
+    Ok(())
 }
 
 /// 隐藏主窗口（收容到系统托盘）

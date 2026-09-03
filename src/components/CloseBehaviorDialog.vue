@@ -1,7 +1,10 @@
 <script setup lang="ts">
-// 关闭行为询问弹窗：后端拦截窗口关闭且数据库未记录偏好时触发（ask-close-behavior 事件）。
-// 用户选择"最小化到托盘"或"退出"后写入数据库（app_settings.close_to_tray），之后不再询问。
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+// 关闭/托盘偏好弹窗，两种模式：
+// - close：后端拦截窗口关闭且未记录偏好时触发（ask-close-behavior），
+//   选择"最小化到托盘"或"退出"后写入数据库（app_settings.close_to_tray），之后不再询问。
+// - start：启动连接成功且未开启最小化到托盘时触发（ask-start-tray），询问是否开启，
+//   避免隧道运行中误关窗口导致断连；不开启不影响本次连接。
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { t } from '../composables/usePrefs';
@@ -9,17 +12,30 @@ import { t } from '../composables/usePrefs';
 /** 与 Rust 端 commands::settings::CLOSE_TO_TRAY_KEY 保持一致 */
 const CLOSE_TO_TRAY_KEY = 'close_to_tray';
 
+type Mode = 'close' | 'start';
+
+const mode = ref<Mode>('close');
 const visible = ref(false);
-let unlisten: UnlistenFn | null = null;
+const unlisteners: UnlistenFn[] = [];
+
+const title = computed(() => (mode.value === 'close' ? t('closeDlg.title') : t('startDlg.title')));
+const message = computed(() => (mode.value === 'close' ? t('closeDlg.message') : t('startDlg.message')));
 
 onMounted(async () => {
-  unlisten = await listen('ask-close-behavior', () => {
-    visible.value = true;
-  });
+  unlisteners.push(
+    await listen('ask-close-behavior', () => {
+      mode.value = 'close';
+      visible.value = true;
+    }),
+    await listen('ask-start-tray', () => {
+      mode.value = 'start';
+      visible.value = true;
+    }),
+  );
   syncTrayTexts();
 });
 
-onUnmounted(() => unlisten?.());
+onUnmounted(() => unlisteners.forEach((fn) => fn()));
 
 // 跟随语言切换更新托盘菜单文案（t 内部读取 reactive locale，可被 watch 追踪）
 watch(() => t('tray.show'), syncTrayTexts);
@@ -36,7 +52,7 @@ async function syncTrayTexts(): Promise<void> {
   }
 }
 
-/** 记录选择并执行对应行为：tray → 隐藏到托盘；exit → 退出应用 */
+/** 关闭询问：记录选择并执行对应行为（tray → 隐藏到托盘；exit → 退出应用） */
 async function choose(value: 'tray' | 'exit'): Promise<void> {
   visible.value = false;
   try {
@@ -56,7 +72,17 @@ async function choose(value: 'tray' | 'exit'): Promise<void> {
   }
 }
 
-/** 取消：不记录偏好，下次关闭仍询问 */
+/** 启动连接询问：仅开启最小化到托盘，不影响当前连接 */
+async function enableTray(): Promise<void> {
+  visible.value = false;
+  try {
+    await invoke('set_app_setting', { key: CLOSE_TO_TRAY_KEY, value: 'tray' });
+  } catch (e) {
+    console.error('开启最小化到托盘失败', e);
+  }
+}
+
+/** 取消：不记录偏好（close 模式下次关闭仍询问；start 模式保持未开启） */
 function cancel(): void {
   visible.value = false;
 }
@@ -65,17 +91,21 @@ function cancel(): void {
 <template>
   <Transition name="modal">
     <div v-if="visible" class="overlay">
-      <div class="modal" role="dialog" aria-modal="true" :aria-label="t('closeDlg.title')">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="title">
         <div class="modal-head">
-          <h3>{{ t('closeDlg.title') }}</h3>
+          <h3>{{ title }}</h3>
         </div>
         <div class="modal-body">
-          <p class="msg">{{ t('closeDlg.message') }}</p>
+          <p class="msg">{{ message }}</p>
         </div>
-        <div class="modal-foot">
+        <div v-if="mode === 'close'" class="modal-foot">
           <button class="btn" type="button" @click="cancel">{{ t('common.cancel') }}</button>
           <button class="btn" type="button" @click="choose('exit')">{{ t('closeDlg.exit') }}</button>
           <button class="btn primary" type="button" @click="choose('tray')">{{ t('closeDlg.toTray') }}</button>
+        </div>
+        <div v-else class="modal-foot">
+          <button class="btn" type="button" @click="cancel">{{ t('common.cancel') }}</button>
+          <button class="btn primary" type="button" @click="enableTray">{{ t('startDlg.enable') }}</button>
         </div>
       </div>
     </div>

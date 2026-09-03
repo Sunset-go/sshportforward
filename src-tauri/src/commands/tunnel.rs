@@ -2,9 +2,10 @@
 
 use std::collections::HashMap;
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
-use crate::db::{AppConnState, AppDb};
+use crate::commands::settings::CLOSE_TO_TRAY_KEY;
+use crate::db::{self, AppConnState, AppDb};
 use crate::models::TrafficStat;
 use crate::ssh::{self, SshConfig, TunnelState};
 
@@ -26,6 +27,7 @@ fn set_state(conn: &AppConnState, state: &str) {
 /// 启动隧道：从加密库读取主机凭据并建立真实 SSH 会话，随后为启用规则建立转发
 #[tauri::command]
 pub async fn start_tunnel(
+    app: AppHandle,
     db: State<'_, AppDb>,
     conn: State<'_, AppConnState>,
     tunnel: State<'_, TunnelState>,
@@ -48,6 +50,16 @@ pub async fn start_tunnel(
             *tunnel.session.lock().expect("隧道会话锁已中毒") = Some(session);
             *tunnel.traffic.lock().expect("隧道流量锁已中毒") = traffic;
             set_state(&conn, "connected");
+
+            // 隧道已运行但关闭行为未设为最小化到托盘时，提醒用户开启，
+            // 避免误点关闭窗口导致隧道中断
+            let pref = db::get_setting(&db.0, CLOSE_TO_TRAY_KEY)
+                .await
+                .ok()
+                .flatten();
+            if pref.as_deref() != Some("tray") {
+                let _ = app.emit("ask-start-tray", ());
+            }
             Ok(())
         }
         Err(e) => {

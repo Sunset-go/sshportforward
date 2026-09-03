@@ -166,6 +166,10 @@ const messages: Record<Locale, Record<string, string>> = {
     'closeDlg.message': '是否将程序最小化到系统托盘？此选择将被记住，之后关闭窗口不再询问；可随时在托盘菜单中修改。',
     'closeDlg.toTray': '最小化到托盘',
     'closeDlg.exit': '退出程序',
+
+    'startDlg.title': '开启最小化到托盘？',
+    'startDlg.message': '当前未开启"关闭时最小化到托盘"。开启后，点击关闭窗口时程序将收容到托盘，隧道保持运行。是否开启？',
+    'startDlg.enable': '开启',
   },
   en: {
     'common.save': 'Save',
@@ -293,6 +297,10 @@ const messages: Record<Locale, Record<string, string>> = {
     'closeDlg.message': 'Minimize to the system tray instead of exiting? This choice will be remembered and you will not be asked again; you can change it anytime from the tray menu.',
     'closeDlg.toTray': 'Minimize to Tray',
     'closeDlg.exit': 'Exit',
+
+    'startDlg.title': 'Enable Minimize to Tray?',
+    'startDlg.message': '"Minimize to Tray on Close" is not enabled yet. Once enabled, closing the window keeps the app in the tray and the tunnel running. Enable it now?',
+    'startDlg.enable': 'Enable',
   },
 };
 
