@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 
 const { state, currentHost, addHost, saveHost, deleteHost, toggleShowPassword, pickKeyFile } = useSshTunnel();
 
-const collapsed = ref(false);
+const collapsed = computed({
+  get: () => state.cardCollapsed.config,
+  set: (v) => { state.cardCollapsed.config = v; },
+});
 
 const isConnected = computed(() => state.connState === 'connected');
 </script>

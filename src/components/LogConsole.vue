@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 
@@ -8,7 +8,10 @@ const { state, clearLogs, logsText } = useSshTunnel();
 const bodyRef = ref<HTMLDivElement | null>(null);
 const autoScroll = ref(true);
 const copied = ref(false);
-const collapsed = ref(false);
+const collapsed = computed({
+  get: () => state.cardCollapsed.logs,
+  set: (v) => { state.cardCollapsed.logs = v; },
+});
 
 function onScroll() {
   const el = bodyRef.value;

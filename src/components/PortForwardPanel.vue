@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 import type { RuleType } from '../types';
@@ -9,7 +9,10 @@ import RuleEditModal from './RuleEditModal.vue';
 const { state, currentHostIsDraft, setActiveRuleType, addRule } = useSshTunnel();
 const isLocked = computed(() => state.connState === 'connected' || currentHostIsDraft.value);
 
-const collapsed = ref(false);
+const collapsed = computed({
+  get: () => state.cardCollapsed.rules,
+  set: (v) => { state.cardCollapsed.rules = v; },
+});
 
 const tabs: { type: RuleType; flag: string }[] = [
   { type: 'local', flag: '-L' },

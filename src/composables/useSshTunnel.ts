@@ -29,6 +29,9 @@ interface TunnelState {
   hostName: string;
   /** 初始化是否完成 */
   initialized: boolean;
+  /** 三张卡片的折叠状态（true=收起）：新建主机时展开配置并收起其余两张，
+   *  启动连接时收起配置与日志、展开转发规则，便于聚焦当前操作 */
+  cardCollapsed: { config: boolean; rules: boolean; logs: boolean };
 }
 
 const state = reactive<TunnelState>({
@@ -46,6 +49,7 @@ const state = reactive<TunnelState>({
   traffic: {},
   hostName: '',
   initialized: false,
+  cardCollapsed: { config: false, rules: false, logs: false },
 });
 
 /** 生成自增日志 id */
@@ -138,6 +142,8 @@ function addHost(): void {
   state.hosts.push(draft);
   state.currentHostId = draft.id;
   state.dirtyHosts.add(draft.id);
+  // 新建主机时聚焦配置：展开配置卡片，收起转发规则与日志
+  state.cardCollapsed = { config: false, rules: true, logs: true };
   addLog('INFO', t('logmsg.addHost', { name: draft.name }));
 }
 
@@ -409,6 +415,8 @@ async function startTunnel(): Promise<void> {
     addLog('WARN', t('logmsg.saveHostFirst'));
     return;
   }
+  // 启动连接时聚焦转发规则：收起配置与日志，展开转发规则
+  state.cardCollapsed = { config: true, rules: false, logs: true };
   state.connState = 'connecting';
   await addLog('INFO', t('logmsg.connecting', { host: h.host, port: h.port, username: h.username }));
 
