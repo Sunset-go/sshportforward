@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // 首屏防闪烁：在 Vue 挂载前从 localStorage 镜像同步主题与语言到 <html>
+      (function () {
+        try {
+          var t = localStorage.getItem('sshpf:theme');
+          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+          var l = localStorage.getItem('sshpf:locale');
+          document.documentElement.lang = l === 'en' ? 'en' : 'zh-CN';
+        } catch (e) { /* 忽略 */ }
+      })();
+    </script>
     <title>SSH 端口转发可视化工具</title>
   </head>
 

@@ -3,8 +3,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 import StatusDot from './StatusDot.vue';
-import LangSwitcher from './LangSwitcher.vue';
-import ThemeSwitcher from './ThemeSwitcher.vue';
 
 const { state, currentHost, selectHost, startTunnel, stopTunnel } = useSshTunnel();
 
@@ -79,8 +77,6 @@ const label = computed(() => {
         {{ state.connState === 'connecting' ? t('conn.connecting') : t('conn.start') }}
       </button>
       <button class="btn" type="button" :disabled="stopDisabled" @click="stopTunnel">{{ t('conn.stop') }}</button>
-      <LangSwitcher />
-      <ThemeSwitcher />
     </div>
   </header>
 </template>

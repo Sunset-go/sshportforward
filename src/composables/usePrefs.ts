@@ -1,42 +1,9 @@
-// 应用偏好单例（语言 + 主题）
-// 项目未安装 Pinia / vue-i18n，故用模块级 reactive 单例 + 手写字典实现轻量 i18n 与主题切换。
+// 应用偏好 i18n 字典与 t()。主题/语言状态由 useSettings 管理（持久化到后端）。
+// 项目未安装 vue-i18n，故用模块级手写字典实现轻量 i18n；t() 读取 useSettings
+// 的响应式 locale，语言切换时所有模板中调用 t() 的组件自动重渲染。
 
-import { computed, reactive, watch } from 'vue';
-
-export type Locale = 'zh' | 'en';
-export type ThemeMode = 'dark' | 'light';
-
-const LOCALE_KEY = 'sshpf:locale';
-const THEME_KEY = 'sshpf:theme';
-
-function readStorage(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* 忽略存储失败 */
-  }
-}
-
-function readLocale(): Locale {
-  return readStorage(LOCALE_KEY) === 'en' ? 'en' : 'zh';
-}
-
-function readTheme(): ThemeMode {
-  return readStorage(THEME_KEY) === 'light' ? 'light' : 'dark';
-}
-
-const state = reactive({
-  locale: readLocale(),
-  theme: readTheme(),
-});
+import type { Locale } from './useSettings';
+import { settings } from './useSettings';
 
 /** 中英文案字典 */
 const messages: Record<Locale, Record<string, string>> = {
@@ -170,6 +137,21 @@ const messages: Record<Locale, Record<string, string>> = {
     'startDlg.title': '开启最小化到托盘？',
     'startDlg.message': '当前未开启"关闭时最小化到托盘"。开启后，点击关闭窗口时程序将收容到托盘，隧道保持运行。是否开启？',
     'startDlg.enable': '开启',
+
+    'topbar.language': '语言',
+    'topbar.theme': '主题',
+    'topbar.settings': '设置',
+
+    'settings.title': '设置',
+    'settings.theme': '主题',
+    'settings.locale': '语言',
+    'settings.minimizeToTray': '关闭时最小化到托盘',
+    'settings.autoStart': '开机自启',
+    'settings.dark': '深色',
+    'settings.light': '浅色',
+    'settings.zh': '简体中文',
+    'settings.en': 'English',
+    'settings.close': '关闭',
   },
   en: {
     'common.save': 'Save',
@@ -301,53 +283,30 @@ const messages: Record<Locale, Record<string, string>> = {
     'startDlg.title': 'Enable Minimize to Tray?',
     'startDlg.message': '"Minimize to Tray on Close" is not enabled yet. Once enabled, closing the window keeps the app in the tray and the tunnel running. Enable it now?',
     'startDlg.enable': 'Enable',
+
+    'topbar.language': 'Language',
+    'topbar.theme': 'Theme',
+    'topbar.settings': 'Settings',
+
+    'settings.title': 'Settings',
+    'settings.theme': 'Theme',
+    'settings.locale': 'Language',
+    'settings.minimizeToTray': 'Minimize to Tray on Close',
+    'settings.autoStart': 'Launch at Startup',
+    'settings.dark': 'Dark',
+    'settings.light': 'Light',
+    'settings.zh': '简体中文',
+    'settings.en': 'English',
+    'settings.close': 'Close',
   },
 };
 
-/** 翻译函数，支持 {name} 插值 */
+/** 翻译函数，支持 {name} 插值。读取 useSettings 的响应式 locale，语言切换即重渲染 */
 export function t(key: string, params?: Record<string, string | number>): string {
-  const template = messages[state.locale]?.[key] ?? messages.zh[key] ?? key;
+  const template = messages[settings.locale]?.[key] ?? messages.zh[key] ?? key;
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_m, name: string) =>
     params[name] !== undefined ? String(params[name]) : '',
   );
 }
 
-/** 将主题写入 <html data-theme="...">，供 CSS 变量切换 */
-function applyTheme(theme: ThemeMode): void {
-  document.documentElement.setAttribute('data-theme', theme);
-}
-
-// 模块加载即应用持久化主题，避免闪烁
-applyTheme(state.theme);
-
-watch(
-  () => state.theme,
-  (v) => {
-    writeStorage(THEME_KEY, v);
-    applyTheme(v);
-  },
-);
-watch(
-  () => state.locale,
-  (v) => writeStorage(LOCALE_KEY, v),
-);
-
-function setLocale(locale: Locale): void {
-  state.locale = locale;
-}
-
-function setTheme(theme: ThemeMode): void {
-  state.theme = theme;
-}
-
-/** 单例 hook */
-export function usePrefs() {
-  return {
-    locale: computed(() => state.locale),
-    theme: computed(() => state.theme),
-    t,
-    setLocale,
-    setTheme,
-  };
-}

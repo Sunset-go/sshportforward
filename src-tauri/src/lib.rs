@@ -4,6 +4,7 @@ mod commands;
 mod crypto;
 mod db;
 mod models;
+mod settings;
 mod ssh;
 
 use tauri::{
@@ -153,6 +154,8 @@ pub fn run() {
             commands::settings::hide_main_window,
             commands::settings::exit_app,
             commands::settings::set_tray_texts,
+            settings::get_settings,
+            settings::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

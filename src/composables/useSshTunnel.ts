@@ -29,8 +29,8 @@ interface TunnelState {
   hostName: string;
   /** 初始化是否完成 */
   initialized: boolean;
-  /** 三张卡片的折叠状态（true=收起）：新建主机时展开配置并收起其余两张，
-   *  启动连接时收起配置与日志、展开转发规则，便于聚焦当前操作 */
+  /** 三张卡片的折叠状态（true=收起）：启动后默认仅展开转发规则卡片，
+   *  新建主机时展开配置并收起其余两张，启动连接时收起配置与日志、展开转发规则 */
   cardCollapsed: { config: boolean; rules: boolean; logs: boolean };
 }
 
@@ -49,7 +49,7 @@ const state = reactive<TunnelState>({
   traffic: {},
   hostName: '',
   initialized: false,
-  cardCollapsed: { config: false, rules: false, logs: false },
+  cardCollapsed: { config: true, rules: false, logs: true },
 });
 
 /** 生成自增日志 id */
