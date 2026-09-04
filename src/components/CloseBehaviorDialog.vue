@@ -52,23 +52,29 @@ async function syncTrayTexts(): Promise<void> {
   }
 }
 
-/** 关闭询问：记录选择并执行对应行为（tray → 隐藏到托盘；exit → 退出应用） */
+/** 关闭询问：tray → 记录到数据库并隐藏到托盘；exit → 不保存偏好直接退出应用 */
 async function choose(value: 'tray' | 'exit'): Promise<void> {
   visible.value = false;
-  try {
-    await invoke('set_app_setting', { key: CLOSE_TO_TRAY_KEY, value });
-  } catch (e) {
-    console.error('保存关闭行为设置失败', e);
-    return;
-  }
-  try {
-    if (value === 'tray') {
-      await invoke('hide_main_window');
-    } else {
-      await invoke('exit_app');
+  if (value === 'tray') {
+    // 选择"最小化到托盘"：记录到数据库，之后连接中关闭不再询问
+    try {
+      await invoke('set_app_setting', { key: CLOSE_TO_TRAY_KEY, value: 'tray' });
+    } catch (e) {
+      console.error('保存关闭行为设置失败', e);
+      return;
     }
-  } catch (e) {
-    console.error('执行关闭行为失败', e);
+    try {
+      await invoke('hide_main_window');
+    } catch (e) {
+      console.error('执行关闭行为失败', e);
+    }
+  } else {
+    // 选择"退出"：不保存偏好，直接退出应用（下次连接中关闭仍会询问）
+    try {
+      await invoke('exit_app');
+    } catch (e) {
+      console.error('退出应用失败', e);
+    }
   }
 }
 

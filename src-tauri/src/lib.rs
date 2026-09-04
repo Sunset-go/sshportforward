@@ -99,27 +99,37 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 拦截关闭：按数据库中记录的 close_to_tray 偏好决定隐藏到托盘还是退出；
-            // 未配置时通知前端弹窗询问
+            // 拦截关闭：仅在连接中且未确定最小化到托盘时弹窗询问；
+            // 已选择托盘则直接隐藏；未连接则按偏好退出或隐藏，不弹窗
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let app = window.app_handle();
                 let db = app.state::<db::AppDb>();
+                let conn = app.state::<db::AppConnState>();
+                let conn_state = conn
+                    .0
+                    .read()
+                    .expect("连接状态锁已中毒")
+                    .clone();
                 let pref = tauri::async_runtime::block_on(db::get_setting(&db.0, CLOSE_TO_TRAY_KEY))
                     .ok()
                     .flatten();
-                match pref.as_deref() {
-                    Some("tray") => {
+                let connected = conn_state == "connected";
+                match (connected, pref.as_deref()) {
+                    // 已选择最小化到托盘：无论是否连接，直接隐藏，不弹窗
+                    (_, Some("tray")) => {
                         api.prevent_close();
                         if let Some(win) = app.get_webview_window("main") {
                             let _ = win.hide();
                         }
                     }
-                    Some("exit") => {
-                        // 放行关闭，应用退出
-                    }
-                    _ => {
+                    // 连接中且未确定最小化到托盘（未设置或为 exit）：弹窗询问
+                    (true, _) => {
                         api.prevent_close();
                         let _ = app.emit("ask-close-behavior", ());
+                    }
+                    // 未连接且未选择托盘：直接退出，不弹窗
+                    (false, _) => {
+                        // 放行关闭，应用退出
                     }
                 }
             }

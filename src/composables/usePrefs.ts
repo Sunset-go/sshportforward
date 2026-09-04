@@ -163,7 +163,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'tray.quit': '退出',
 
     'closeDlg.title': '关闭程序',
-    'closeDlg.message': '是否将程序最小化到系统托盘？此选择将被记住，之后关闭窗口不再询问；可随时在托盘菜单中修改。',
+    'closeDlg.message': '当前有活动的 SSH 连接。是否将程序最小化到系统托盘以保持隧道运行？选择"最小化到托盘"将被记住，之后不再询问；选择"退出"不会保存偏好并直接退出，下次连接中关闭仍会询问。',
     'closeDlg.toTray': '最小化到托盘',
     'closeDlg.exit': '退出程序',
 
@@ -294,7 +294,7 @@ const messages: Record<Locale, Record<string, string>> = {
     'tray.quit': 'Quit',
 
     'closeDlg.title': 'Close Application',
-    'closeDlg.message': 'Minimize to the system tray instead of exiting? This choice will be remembered and you will not be asked again; you can change it anytime from the tray menu.',
+    'closeDlg.message': 'An SSH connection is active. Minimize to the system tray to keep the tunnel running? Choosing "Minimize to Tray" is remembered and you won\'t be asked again; choosing "Exit" exits now without saving, so you\'ll be asked again next time you close while connected.',
     'closeDlg.toTray': 'Minimize to Tray',
     'closeDlg.exit': 'Exit',
 
