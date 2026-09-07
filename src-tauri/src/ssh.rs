@@ -11,6 +11,7 @@
 //! 锁仅在打开通道/请求转发的短暂瞬间持有，数据转发走独立的 `ChannelStream`。
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -110,6 +111,19 @@ pub struct SshConfig {
     pub username: String,
     pub password: String,
     pub key_path: String,
+    /// 私钥密码（可选，空串表示私钥未加密）
+    pub passphrase: String,
+}
+
+/// 展开以 `~/` 开头的路径为绝对路径（`std::fs` 不识别 `~`）；
+/// 其余路径原样返回。无 home 目录时退化为相对路径原样返回。
+pub(crate) fn expand_home(path: &str) -> PathBuf {
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    }
+    PathBuf::from(path)
 }
 
 #[derive(Clone)]
@@ -211,7 +225,13 @@ pub async fn start(
     .map_err(|e| format!("连接 {}:{} 失败: {e}", config.host, config.port))?;
 
     let auth = if !config.key_path.is_empty() {
-        let key = russh::keys::load_secret_key(&config.key_path, None)
+        let key_path = expand_home(&config.key_path);
+        let passphrase = if config.passphrase.is_empty() {
+            None
+        } else {
+            Some(config.passphrase.as_str())
+        };
+        let key = russh::keys::load_secret_key(&key_path, passphrase)
             .map_err(|e| format!("加载私钥失败: {e}"))?;
         let key = PrivateKeyWithHashAlg::new(Arc::new(key), None);
         handle

@@ -1,31 +1,60 @@
-/* 全局主题变量与基础样式。深色为默认（:root），浅色经 [data-theme="light"] 覆盖。 */
+/* 全局主题变量与基础样式。
+ * 深色为默认（:root），浅色经 [data-theme="light"] 覆盖。
+ * 上方为规格设计令牌（§1），下方为复用旧组件的别名（保证 PortForwardPanel/LogConsole 等零改动）。
+ */
 
 :root {
-  --bg-app: #0d1117;
-  --bg-panel: #161b22;
-  --bg-input: #0b0f14;
-  --border: #26303d;
-  --text: #c9d1d9;
-  --text-dim: #7d8590;
-  --accent: #2f81f7;
-  --accent-soft: rgba(47, 129, 247, 0.15);
-  --success: #3fb950;
+  /* —— 设计令牌（深色默认）—— */
+  --win-bg: #1a1b1f;       /* 窗口背景 */
+  --side-bg: #17181c;      /* 侧边栏 / 页签栏底 */
+  --card: #212228;         /* 卡片底 */
+  --card-2: #1c1d23;       /* 卡片次级底 */
+  --input: #191a1f;        /* 输入控件底 */
+  --border: #2c2e36;       /* 分隔线 / 边框 */
+  --text: #e7e8ec;         /* 主文字 */
+  --text-2: #9b9da6;       /* 次要文字 */
+  --text-3: #6e707a;       /* 三级文字 */
+  --blue: #3d7eff;         /* 强调蓝 */
+  --green: #35c759;        /* 成功绿 */
+  --green-text: #4ed07a;   /* 成功文字 */
+  --btn-bg: #2a2b33;       /* 图标按钮底 */
+  --btn-border: #33353e;   /* 图标按钮边框 */
+  --icon: #b6b9c2;         /* 图标色 */
+  --row: #1e1f26;          /* 列表行底 */
+  --sel: #262830;          /* 激活页签底 */
+  --log-bg: #131418;       /* 日志区底 */
+  --dashed-bg: #1d1e24;    /* 虚线按钮底 */
+  --dashed-border: #3a3c46;/* 虚线按钮边框 */
+  --success-bg: #1b2a20;   /* 成功提示条底 */
+  --success-border: #2c5c3d; /* 成功提示条边框 */
+  --fold-bg: #1f2025;      /* 折叠按钮常态底 */
+  --fold-hover-border: #444854; /* 折叠按钮悬浮边框 */
+
+  --radius-card: 10px;
+  --radius-input: 6px;
+  --radius-btn: 7px;
+
+  /* —— 兼容旧组件的别名（复用 PortForwardPanel / LogConsole / RuleTable 等）—— */
+  --bg-app: var(--win-bg);
+  --bg-panel: var(--card);
+  --bg-input: var(--input);
+  --border-soft: rgba(44, 46, 54, 0.5);
+  --text-dim: var(--text-2);
+  --accent: var(--blue);
+  --accent-soft: rgba(61, 126, 255, 0.15);
+  --accent-hover: rgba(61, 126, 255, 0.06);
+  --success: var(--green);
   --warn: #d29922;
   --error: #f85149;
   --radius: 6px;
   --gap: 12px;
-
-  --border-soft: rgba(38, 48, 61, 0.5);
-  --accent-hover: rgba(47, 129, 247, 0.06);
   --panel-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   --modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   --log-info: #6e7b8b;
   --log-success-text: #b6f0c0;
   --log-warn-text: #f0d39a;
   --log-error-text: #ffb3b0;
-
-  /* 顶部工具栏 */
-  --topbar-bg: #12161d;
+  --topbar-bg: var(--side-bg);
   --topbar-border: var(--border);
 
   font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Roboto, system-ui, sans-serif;
@@ -36,31 +65,44 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 浅色主题变量（覆盖深色默认值） */
+/* 浅色主题变量 */
 [data-theme='light'] {
-  --bg-app: #f6f8fa;
-  --bg-panel: #ffffff;
-  --bg-input: #ffffff;
-  --border: #d0d7de;
+  --win-bg: #f6f8fa;
+  --side-bg: #eef0f4;
+  --card: #ffffff;
+  --card-2: #f3f5f8;
+  --input: #ffffff;
+  --border: #d5d9e0;
   --text: #1f2328;
-  --text-dim: #59636e;
-  --accent: #0969da;
-  --accent-soft: rgba(9, 105, 218, 0.12);
-  --success: #1a7f37;
+  --text-2: #59636e;
+  --text-3: #8b949e;
+  --blue: #2563eb;
+  --green: #1a7f37;
+  --green-text: #1a7f37;
+  --btn-bg: #eef1f5;
+  --btn-border: #d5d9e0;
+  --icon: #59636e;
+  --row: #f3f5f8;
+  --sel: #e8ecf2;
+  --log-bg: #f6f8fa;
+  --dashed-bg: #f0f2f6;
+  --dashed-border: #c8cdd6;
+  --success-bg: #e6f4ea;
+  --success-border: #b6dcc2;
+  --fold-bg: #e2e5ea;
+  --fold-hover-border: #b8bec9;
+
+  --border-soft: rgba(213, 217, 224, 0.65);
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent-hover: rgba(37, 99, 235, 0.08);
   --warn: #9a6700;
   --error: #cf222e;
-
-  --border-soft: rgba(208, 215, 222, 0.65);
-  --accent-hover: rgba(9, 105, 218, 0.08);
   --panel-shadow: 0 1px 3px rgba(31, 35, 40, 0.12), 0 1px 2px rgba(31, 35, 40, 0.06);
   --modal-shadow: 0 8px 32px rgba(31, 35, 40, 0.2);
   --log-info: #57606a;
   --log-success-text: #1a7f37;
   --log-warn-text: #7d4e00;
   --log-error-text: #cf222e;
-
-  --topbar-bg: #eaeef2;
-  --topbar-border: var(--border);
 }
 
 * { box-sizing: border-box; }
@@ -78,5 +120,5 @@ input[type="number"]::-webkit-outer-spin-button { opacity: 0.4; }
   background: var(--border);
   border-radius: 8px;
 }
-*::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }

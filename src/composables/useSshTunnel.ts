@@ -5,7 +5,7 @@ import { computed, reactive, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { t } from './usePrefs';
 import { describeRule, genId } from '../utils';
-import type { ConnState, ForwardRule, HostProfile, LogEntry, LogLevel, RuleType, TrafficStat } from '../types';
+import type { ConnState, ForwardRule, HostProfile, KeyInfo, LogEntry, LogLevel, RuleType, TrafficStat } from '../types';
 
 interface TunnelState {
   hosts: HostProfile[];
@@ -25,13 +25,12 @@ interface TunnelState {
   dirtyHosts: Set<string>;
   /** 各转发规则的实时流量速率（字节/秒，规则 id 为键，仅连接期间有值） */
   traffic: Record<string, TrafficStat>;
-  /** 主机名称输入框内容（HostBar 编辑，点击保存时写入当前主机） */
-  hostName: string;
+  /** 累计流量总字节数（上传+下载，仅连接期间有值） */
+  totalBytes: number;
+  /** 本次连接开始时间戳（毫秒），未连接为 null */
+  connectedAt: number | null;
   /** 初始化是否完成 */
   initialized: boolean;
-  /** 三张卡片的折叠状态（true=收起）：启动后默认仅展开转发规则卡片，
-   *  新建主机时展开配置并收起其余两张，启动连接时收起配置与日志、展开转发规则 */
-  cardCollapsed: { config: boolean; rules: boolean; logs: boolean };
 }
 
 const state = reactive<TunnelState>({
@@ -47,9 +46,9 @@ const state = reactive<TunnelState>({
   dirtyRules: new Set(),
   dirtyHosts: new Set(),
   traffic: {},
-  hostName: '',
+  totalBytes: 0,
+  connectedAt: null,
   initialized: false,
-  cardCollapsed: { config: true, rules: false, logs: true },
 });
 
 /** 生成自增日志 id */
@@ -92,6 +91,7 @@ function createDefaultHost(): HostProfile {
     username: '',
     password: '',
     keyPath: '',
+    passphrase: '',
     rules: [],
   };
 }
@@ -142,8 +142,6 @@ function addHost(): void {
   state.hosts.push(draft);
   state.currentHostId = draft.id;
   state.dirtyHosts.add(draft.id);
-  // 新建主机时聚焦配置：展开配置卡片，收起转发规则与日志
-  state.cardCollapsed = { config: false, rules: true, logs: true };
   addLog('INFO', t('logmsg.addHost', { name: draft.name }));
 }
 
@@ -151,8 +149,8 @@ function addHost(): void {
 async function saveHost(): Promise<void> {
   const h = currentHost.value;
   if (!h) return;
-  // 名称输入框内容写入当前主机
-  h.name = state.hostName.trim() || t('common.unnamed');
+  // 名称直接绑定在表单字段上，此处仅在为空时兜底
+  if (!h.name.trim()) h.name = t('common.unnamed');
   const isNew = state.dirtyHosts.has(h.id);
 
   // 草稿主机：持久化后替换为后端返回的正式记录
@@ -167,6 +165,7 @@ async function saveHost(): Promise<void> {
           username: h.username,
           password: h.password,
           keyPath: h.keyPath,
+          passphrase: h.passphrase,
         },
       });
       const idx = state.hosts.findIndex((x) => x.id === h.id);
@@ -214,6 +213,7 @@ async function saveHost(): Promise<void> {
         username: h.username,
         password: h.password,
         keyPath: h.keyPath,
+        passphrase: h.passphrase,
       },
     });
     addLog('SUCCESS', t('logmsg.saveHost', { name: h.name }));
@@ -222,10 +222,11 @@ async function saveHost(): Promise<void> {
   }
 }
 
-/** 删除当前主机（草稿主机直接移除，已持久化的先删后端） */
-async function deleteHost(): Promise<void> {
-  const h = currentHost.value;
+/** 删除主机（草稿直接移除，已持久化的先删后端）；可选 id 删除列表中的任意主机 */
+async function deleteHost(id?: string): Promise<void> {
+  const h = id ? state.hosts.find((x) => x.id === id) : currentHost.value;
   if (!h) return;
+  const wasCurrent = state.currentHostId === h.id;
 
   if (!state.dirtyHosts.has(h.id)) {
     try {
@@ -237,10 +238,61 @@ async function deleteHost(): Promise<void> {
   }
 
   const idx = state.hosts.findIndex((x) => x.id === h.id);
-  state.hosts.splice(idx, 1);
-  state.currentHostId = state.hosts[0]?.id ?? '';
+  if (idx >= 0) state.hosts.splice(idx, 1);
+  if (wasCurrent) state.currentHostId = state.hosts[0]?.id ?? '';
   state.dirtyHosts.delete(h.id);
   addLog('WARN', t('logmsg.deleteHost', { name: h.name }));
+}
+
+/** 重命名列表中的主机（草稿仅更新本地，已持久化的写回后端） */
+async function renameHost(id: string, name: string): Promise<void> {
+  const h = state.hosts.find((x) => x.id === id);
+  const trimmed = name.trim();
+  if (!h || !trimmed) return;
+  h.name = trimmed;
+  if (state.dirtyHosts.has(h.id)) return;
+
+  try {
+    await invoke('save_host', {
+      input: {
+        id: h.id,
+        name: h.name,
+        host: h.host,
+        port: h.port,
+        username: h.username,
+        password: h.password,
+        keyPath: h.keyPath,
+        passphrase: h.passphrase,
+      },
+    });
+    addLog('INFO', t('logmsg.saveHost', { name: h.name }));
+  } catch (err) {
+    addLog('ERROR', `${t('logmsg.err.saveHost')}: ${err}`);
+  }
+}
+
+/** 新增并持久化一台主机（供新增主机弹窗），成功后自动选中，失败返回 null */
+async function createHost(input: {
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  keyPath: string;
+  passphrase: string;
+}): Promise<HostProfile | null> {
+  try {
+    const saved = await invoke<HostProfile>('save_host', {
+      input: { id: undefined, ...input },
+    });
+    state.hosts.push(saved);
+    state.currentHostId = saved.id;
+    addLog('SUCCESS', t('logmsg.saveHost', { name: saved.name }));
+    return saved;
+  } catch (err) {
+    addLog('ERROR', `${t('logmsg.err.saveHost')}: ${err}`);
+    return null;
+  }
 }
 
 /** 切换 Tab */
@@ -415,8 +467,6 @@ async function startTunnel(): Promise<void> {
     addLog('WARN', t('logmsg.saveHostFirst'));
     return;
   }
-  // 启动连接时聚焦转发规则：收起配置与日志，展开转发规则
-  state.cardCollapsed = { config: true, rules: false, logs: true };
   state.connState = 'connecting';
   await addLog('INFO', t('logmsg.connecting', { host: h.host, port: h.port, username: h.username }));
 
@@ -483,18 +533,25 @@ async function stopTunnel(): Promise<void> {
   await addLog('SUCCESS', t('logmsg.disconnected', { host: h.host }));
 }
 
-/** 选择私钥文件 */
-async function pickKeyFile(): Promise<void> {
-  const h = currentHost.value;
-  if (!h) return;
+/** 选择私钥文件并返回路径（不写入任何主机，供 AuthFields 复用）；取消返回空串 */
+async function pickKeyFilePath(): Promise<string> {
   try {
     const path = await invoke<string>('pick_key_file');
-    if (path) {
-      h.keyPath = path;
-      await addLog('INFO', t('logmsg.pickKey', { path }));
-    }
+    if (path) await addLog('INFO', t('logmsg.pickKey', { path }));
+    return path;
   } catch (err) {
     addLog('ERROR', `${t('logmsg.err.pickKey')}: ${err}`);
+    return '';
+  }
+}
+
+/** 读取私钥对应的公钥信息（类型 + SHA256 指纹），无 .pub 时返回 null */
+async function inspectPrivateKey(path: string): Promise<KeyInfo | null> {
+  try {
+    return await invoke<KeyInfo | null>('inspect_private_key', { path });
+  } catch (err) {
+    addLog('ERROR', `${t('logmsg.err.pickKey')}: ${err}`);
+    return null;
   }
 }
 
@@ -537,15 +594,6 @@ async function loadHosts(): Promise<void> {
   }
 }
 
-// 切换主机时同步名称输入框
-watch(
-  () => state.currentHostId,
-  () => {
-    state.hostName = currentHost.value?.name ?? '';
-  },
-  { immediate: true },
-);
-
 // 初始化：加载主机列表
 loadHosts();
 
@@ -561,13 +609,16 @@ watch(
     if (v === 'connected' && trafficTimer === null) {
       lastSamples = {};
       lastSampleAt = 0;
+      state.connectedAt = Date.now();
       trafficTimer = setInterval(async () => {
         try {
           const cur = await invoke<Record<string, TrafficStat>>('get_traffic');
           const now = Date.now();
           const dt = (now - lastSampleAt) / 1000;
           const rates: Record<string, TrafficStat> = {};
+          let total = 0;
           for (const [id, s] of Object.entries(cur)) {
+            total += s.up + s.down;
             const prev = lastSamples[id];
             // 无上次采样或计数器重置（重连）时速率记 0
             if (prev && dt > 0 && s.up >= prev.up && s.down >= prev.down) {
@@ -579,6 +630,7 @@ watch(
           lastSamples = cur;
           lastSampleAt = now;
           state.traffic = rates;
+          state.totalBytes = total;
         } catch {
           /* 查询失败时保留上次数据 */
         }
@@ -589,6 +641,8 @@ watch(
       lastSamples = {};
       lastSampleAt = 0;
       state.traffic = {};
+      state.totalBytes = 0;
+      state.connectedAt = null;
     }
   },
 );
@@ -604,6 +658,8 @@ export function useSshTunnel() {
     addHost,
     saveHost,
     deleteHost,
+    renameHost,
+    createHost,
     setActiveRuleType,
     addRule,
     removeRule,
@@ -616,7 +672,8 @@ export function useSshTunnel() {
     toggleShowPassword,
     startTunnel,
     stopTunnel,
-    pickKeyFile,
+    pickKeyFilePath,
+    inspectPrivateKey,
     clearLogs,
     logsText,
   };

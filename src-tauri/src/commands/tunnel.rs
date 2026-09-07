@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::commands::settings::CLOSE_TO_TRAY_KEY;
 use crate::db::{self, AppConnState, AppDb};
-use crate::models::TrafficStat;
+use crate::models::{KeyInfo, TrafficStat};
 use crate::ssh::{self, SshConfig, TunnelState};
 
 use super::hosts::{get_host_row, load_rules};
@@ -42,6 +42,7 @@ pub async fn start_tunnel(
         username: row.username.clone(),
         password: crate::crypto::decrypt(&row.password)?,
         key_path: crate::crypto::decrypt(&row.key_path)?,
+        passphrase: crate::crypto::decrypt(&row.passphrase)?,
     };
     let rules = load_rules(&db.0, &host_id).await?;
 
@@ -109,4 +110,40 @@ pub fn pick_key_file(app: tauri::AppHandle) -> String {
         .and_then(|p| p.into_path().ok())
         .map(|pb| pb.to_string_lossy().to_string())
         .unwrap_or_default()
+}
+
+/// 读取私钥对应的 `.pub` 公钥，回传类型与 SHA256 指纹供前端展示。
+/// 只读取公钥文件，绝不读取私钥内容；无 `.pub` 文件时返回 `None`（前端不渲染信息条）。
+#[tauri::command]
+pub fn inspect_private_key(path: String) -> Result<Option<KeyInfo>, String> {
+    use base64::engine::general_purpose::STANDARD as BASE64;
+    use base64::Engine as _;
+    use sha2::{Digest, Sha256};
+
+    let key_path = crate::ssh::expand_home(&path);
+    let pub_path = format!("{}.pub", key_path.display());
+
+    let content = match std::fs::read_to_string(&pub_path) {
+        Ok(c) => c,
+        Err(_) => return Ok(None), // 没有 .pub 文件：不报错，留给连接失败时提示
+    };
+
+    // OpenSSH 公钥格式：<类型> <base64 主体> <注释>
+    let mut parts = content.split_whitespace();
+    let key_type = parts.next().unwrap_or("").to_string();
+    let body_b64 = parts.next().unwrap_or("");
+    if key_type.is_empty() || body_b64.is_empty() {
+        return Ok(None);
+    }
+
+    let body = BASE64
+        .decode(body_b64)
+        .map_err(|e| format!("解析公钥失败: {e}"))?;
+    let digest = Sha256::digest(&body);
+    let fingerprint = format!("SHA256:{}", BASE64.encode(digest));
+
+    Ok(Some(KeyInfo {
+        key_type,
+        fingerprint,
+    }))
 }

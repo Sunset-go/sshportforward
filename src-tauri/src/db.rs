@@ -23,6 +23,7 @@ pub struct AppConnState(pub RwLock<String>);
 const MIGRATIONS: &[(&str, &str)] = &[
     ("1", include_str!("../db/migrations/001_init.sql")),
     ("2", include_str!("../db/migrations/002_settings.sql")),
+    ("3", include_str!("../db/migrations/003_passphrase.sql")),
 ];
 
 /// 打开应用数据目录下的 SQLite 库并执行迁移，返回连接池。

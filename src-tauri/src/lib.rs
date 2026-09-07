@@ -149,6 +149,7 @@ pub fn run() {
             commands::tunnel::start_tunnel,
             commands::tunnel::stop_tunnel,
             commands::tunnel::pick_key_file,
+            commands::tunnel::inspect_private_key,
             commands::settings::get_app_setting,
             commands::settings::set_app_setting,
             commands::settings::hide_main_window,

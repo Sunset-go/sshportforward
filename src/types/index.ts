@@ -33,7 +33,34 @@ export interface HostProfile {
   password: string;
   /** 私钥文件路径 */
   keyPath: string;
+  /** 私钥密码（可选，空串表示未加密） */
+  passphrase: string;
   rules: ForwardRule[];
+}
+
+/** 私钥公钥信息（类型 + SHA256 指纹），不含私钥内容 */
+export interface KeyInfo {
+  keyType: string;
+  fingerprint: string;
+}
+
+/** 认证方式：密码 / 私钥 */
+export type AuthMethod = 'password' | 'privateKey';
+
+/** 顶部页签 */
+export type PanelKey = 'connect' | 'forward' | 'log' | 'settings';
+
+/** 主机表单草稿（连接页与新增主机弹窗共用），method 为 UI 态、不直接落库 */
+export interface HostDraft {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  method: AuthMethod;
+  password: string;
+  keyPath: string;
+  passphrase: string;
 }
 
 /** 单条规则的流量统计（字节） */

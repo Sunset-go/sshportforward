@@ -9,7 +9,8 @@ use crate::crypto;
 use crate::db::{db_err, gen_id, AppDb};
 use crate::models::{ForwardRuleOut, HostProfileOut, HostRow, RuleRow, SaveHostInput};
 
-const SELECT_HOST_SQL: &str = "SELECT id, name, host, port, username, password, key_path FROM hosts";
+const SELECT_HOST_SQL: &str =
+    "SELECT id, name, host, port, username, password, key_path, passphrase FROM hosts";
 const SELECT_RULES_SQL: &str =
     "SELECT id, rule_type, enabled, listen_addr, target_addr, note FROM forward_rules WHERE host_id = ?";
 
@@ -40,6 +41,7 @@ fn row_to_out(row: HostRow, rules: Vec<ForwardRuleOut>) -> Result<HostProfileOut
     let mut out = row.into_out(rules);
     out.password = crypto::decrypt(&out.password)?;
     out.key_path = crypto::decrypt(&out.key_path)?;
+    out.passphrase = crypto::decrypt(&out.passphrase)?;
     Ok(out)
 }
 
@@ -66,10 +68,11 @@ pub async fn save_host(
 ) -> Result<HostProfileOut, String> {
     let enc_password = crypto::encrypt(&input.password)?;
     let enc_key_path = crypto::encrypt(&input.key_path)?;
+    let enc_passphrase = crypto::encrypt(&input.passphrase)?;
     let id = match &input.id {
         Some(id) if !id.is_empty() => {
             sqlx::query(
-                "UPDATE hosts SET name = ?, host = ?, port = ?, username = ?, password = ?, key_path = ?, updated_at = strftime('%s','now') WHERE id = ?",
+                "UPDATE hosts SET name = ?, host = ?, port = ?, username = ?, password = ?, key_path = ?, passphrase = ?, updated_at = strftime('%s','now') WHERE id = ?",
             )
             .bind(&input.name)
             .bind(&input.host)
@@ -77,6 +80,7 @@ pub async fn save_host(
             .bind(&input.username)
             .bind(&enc_password)
             .bind(&enc_key_path)
+            .bind(&enc_passphrase)
             .bind(id)
             .execute(&db.0)
             .await
@@ -86,7 +90,7 @@ pub async fn save_host(
         _ => {
             let id = gen_id("host");
             sqlx::query(
-                "INSERT INTO hosts (id, name, host, port, username, password, key_path) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO hosts (id, name, host, port, username, password, key_path, passphrase) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(&id)
             .bind(&input.name)
@@ -95,6 +99,7 @@ pub async fn save_host(
             .bind(&input.username)
             .bind(&enc_password)
             .bind(&enc_key_path)
+            .bind(&enc_passphrase)
             .execute(&db.0)
             .await
             .map_err(|e| db_err(e, "保存主机失败"))?;

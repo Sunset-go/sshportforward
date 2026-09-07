@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { useSshTunnel } from '../composables/useSshTunnel';
 import { t } from '../composables/usePrefs';
 
@@ -8,10 +8,6 @@ const { state, clearLogs, logsText } = useSshTunnel();
 const bodyRef = ref<HTMLDivElement | null>(null);
 const autoScroll = ref(true);
 const copied = ref(false);
-const collapsed = computed({
-  get: () => state.cardCollapsed.logs,
-  set: (v) => { state.cardCollapsed.logs = v; },
-});
 
 function onScroll() {
   const el = bodyRef.value;
@@ -48,22 +44,19 @@ function levelClass(l: string) {
 </script>
 
 <template>
-  <section class="log-card" :style="collapsed ? 'flex: 0 0 auto' : undefined">
-    <div class="log-head" :class="{ collapsed }" @click="collapsed = !collapsed">
+  <section class="log-card">
+    <div class="log-head">
       <h2 class="title">{{ t('log.title') }}</h2>
       <span class="count">{{ t('log.count', { n: state.logs.length }) }}</span>
       <div class="spacer"></div>
-      <svg class="chevron" :class="{ down: !collapsed }" width="14" height="14" viewBox="0 0 24 24" fill="none">
-        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <button class="tool" type="button" @click.stop="copyAll">
+      <button class="tool" type="button" @click="copyAll">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.6" />
           <path d="M5 15V5a2 2 0 0 1 2-2h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
         </svg>
         {{ copied ? t('log.copied') : t('log.copy') }}
       </button>
-      <button class="tool" type="button" @click.stop="clearLogs">
+      <button class="tool" type="button" @click="clearLogs">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
@@ -71,7 +64,7 @@ function levelClass(l: string) {
       </button>
     </div>
 
-    <div class="log-body" ref="bodyRef" @scroll="onScroll" v-show="!collapsed">
+    <div class="log-body" ref="bodyRef" @scroll="onScroll">
       <div v-if="state.logs.length === 0" class="empty">{{ t('log.empty') }}</div>
       <div v-for="l in state.logs" :key="l.id" class="line" :class="levelClass(l.level)">
         <span class="time">[{{ l.time }}]</span>
@@ -95,15 +88,11 @@ function levelClass(l: string) {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
-  cursor: pointer; user-select: none;
+  user-select: none;
 }
-.log-head.collapsed { border-bottom-color: transparent; }
 .log-head h2 { font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
-.log-head .title { cursor: inherit; }
 .count { font-size: 12px; color: var(--text-dim); }
 .spacer { flex: 1; }
-.chevron { color: var(--text-dim); transition: transform 0.2s; flex-shrink: 0; }
-.chevron.down { transform: rotate(180deg); }
 .tool {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 10px; font-size: 12px;

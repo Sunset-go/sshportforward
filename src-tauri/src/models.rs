@@ -18,6 +18,7 @@ pub struct HostRow {
     pub username: String,
     pub password: String,
     pub key_path: String,
+    pub passphrase: String,
 }
 
 /// `forward_rules` 表行
@@ -51,6 +52,7 @@ pub struct HostProfileOut {
     pub username: String,
     pub password: String,
     pub key_path: String,
+    pub passphrase: String,
     pub rules: Vec<ForwardRuleOut>,
 }
 
@@ -87,6 +89,9 @@ pub struct SaveHostInput {
     pub username: String,
     pub password: String,
     pub key_path: String,
+    /// 私钥密码（可选）。`#[serde(default)]` 兼容尚未传该字段的旧前端。
+    #[serde(default)]
+    pub passphrase: String,
 }
 
 /// 规则保存入参（`add_rule` / `update_rule` 共用）
@@ -109,6 +114,14 @@ pub struct TrafficStat {
     pub down: u64,
 }
 
+/// 私钥公钥信息（类型 + SHA256 指纹），供前端展示，不含私钥内容
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyInfo {
+    pub key_type: String,
+    pub fingerprint: String,
+}
+
 impl HostRow {
     pub fn into_out(self, rules: Vec<ForwardRuleOut>) -> HostProfileOut {
         HostProfileOut {
@@ -119,6 +132,7 @@ impl HostRow {
             username: self.username,
             password: self.password,
             key_path: self.key_path,
+            passphrase: self.passphrase,
             rules,
         }
     }
