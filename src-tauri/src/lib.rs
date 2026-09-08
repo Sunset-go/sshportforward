@@ -88,6 +88,8 @@ pub fn run() {
                         {
                             eprintln!("保存关闭行为设置失败: {e}");
                         }
+                        // 通知前端实时同步设置面板的复选框状态
+                        let _ = app.emit("close-to-tray-changed", checked);
                     }
                     "quit" => app.exit(0),
                     _ => {}

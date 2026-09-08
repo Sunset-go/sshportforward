@@ -5,6 +5,7 @@
 
 import { reactive } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export type Locale = 'zh' | 'en';
 export type ThemeMode = 'dark' | 'light';
@@ -28,6 +29,27 @@ export const settings = reactive<Settings>({
 });
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let trayListenerReady = false;
+
+/**
+ * 注册托盘菜单 → 前端的单向同步监听器（仅一次）。
+ * 用户在系统托盘菜单中切换"关闭时最小化到托盘"时，后端 emit
+ * `close-to-tray-changed` 事件，此处实时更新响应式 settings，使设置面板
+ * 的复选框与托盘菜单勾选态保持一致。
+ */
+async function ensureTrayListener(): Promise<void> {
+  if (trayListenerReady) return;
+  try {
+    const unlisten: UnlistenFn = await listen<boolean>('close-to-tray-changed', (e) => {
+      settings.minimizeToTray = e.payload;
+    });
+    // 单例应用，监听器生命周期与进程一致；保留引用避免 lint 警告
+    void unlisten;
+    trayListenerReady = true;
+  } catch (e) {
+    console.error('注册托盘设置监听失败', e);
+  }
+}
 
 function lsWrite(key: string, value: string): void {
   try {
@@ -57,6 +79,8 @@ export async function load(): Promise<void> {
     console.error('加载设置失败', e);
   }
   apply();
+  // 注册托盘菜单变更监听（幂等，仅首次生效）
+  void ensureTrayListener();
 }
 
 /** 局部更新：立即应用 + 防抖落盘（save_settings 会把 minimizeToTray 桥接到 DB） */

@@ -10,6 +10,7 @@ const messages: Record<Locale, Record<string, string>> = {
   zh: {
     'common.save': '保存',
     'common.delete': '删除',
+    'common.rename': '重命名',
     'common.cancel': '取消',
     'common.close': '关闭',
     'common.local': '本地',
@@ -198,6 +199,7 @@ const messages: Record<Locale, Record<string, string>> = {
   en: {
     'common.save': 'Save',
     'common.delete': 'Delete',
+    'common.rename': 'Rename',
     'common.cancel': 'Cancel',
     'common.close': 'Close',
     'common.local': 'Local',
