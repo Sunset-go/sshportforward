@@ -28,6 +28,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // 注册自动更新与进程管理插件（仅桌面端）
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            #[cfg(desktop)]
+            app.handle().plugin(tauri_plugin_process::init())?;
+
             let pool = tauri::async_runtime::block_on(db::init_db(app.handle()))?;
             // 初始化敏感字段加密密钥，并把历史明文密码/私钥路径迁移为密文
             crypto::init_master_key(&app.path().app_data_dir()?)

@@ -15,6 +15,7 @@ export interface Settings {
   locale: Locale;
   minimizeToTray: boolean;
   autoStart: boolean;
+  autoUpdate: boolean;
 }
 
 /** localStorage 镜像 key（与 index.html 防闪脚本约定一致） */
@@ -26,6 +27,7 @@ export const settings = reactive<Settings>({
   locale: 'zh',
   minimizeToTray: false,
   autoStart: false,
+  autoUpdate: false,
 });
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +77,7 @@ export async function load(): Promise<void> {
     settings.locale = (s.locale === 'en' ? 'en' : 'zh');
     settings.minimizeToTray = !!s.minimizeToTray;
     settings.autoStart = !!s.autoStart;
+    settings.autoUpdate = !!s.autoUpdate;
   } catch (e) {
     console.error('加载设置失败', e);
   }

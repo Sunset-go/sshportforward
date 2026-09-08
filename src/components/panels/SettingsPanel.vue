@@ -57,6 +57,18 @@ onActivated(() => void load());
             @change="patch({ autoStart: ($event.target as HTMLInputElement).checked })"
           />
         </div>
+        <div class="row">
+          <div class="label-group">
+            <label class="label">{{ t('settings.autoUpdate') }}</label>
+            <span class="hint">{{ t('settings.autoUpdateHint') }}</span>
+          </div>
+          <input
+            class="chk"
+            type="checkbox"
+            :checked="settings.autoUpdate"
+            @change="patch({ autoUpdate: ($event.target as HTMLInputElement).checked })"
+          />
+        </div>
       </div>
     </section>
   </div>
@@ -97,6 +109,8 @@ onActivated(() => void load());
   gap: 12px;
 }
 .label { font-size: 13px; color: var(--text); }
+.label-group { display: flex; flex-direction: column; gap: 2px; }
+.hint { font-size: 11px; color: var(--text-dim); }
 .sel {
   height: 30px;
   padding: 0 10px;

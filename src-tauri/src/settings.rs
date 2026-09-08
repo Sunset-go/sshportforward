@@ -22,6 +22,8 @@ pub struct Settings {
     #[serde(skip)]
     pub minimize_to_tray: bool,
     pub auto_start: bool,
+    /// 启动时自动检查并安装更新（需配合 tauri-plugin-updater）
+    pub auto_update: bool,
 }
 
 impl Default for Settings {
@@ -31,6 +33,7 @@ impl Default for Settings {
             locale: "zh".into(),
             minimize_to_tray: false,
             auto_start: false,
+            auto_update: false,
         }
     }
 }

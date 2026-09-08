@@ -11,9 +11,11 @@ import LogConsole from '../LogConsole.vue';
 import SettingsPanel from '../panels/SettingsPanel.vue';
 import CloseBehaviorDialog from '../CloseBehaviorDialog.vue';
 import { useSettings } from '../../composables/useSettings';
+import { useUpdater } from '../../composables/useUpdater';
 import type { PanelKey } from '../../types';
 
 const { load } = useSettings();
+const { checkForUpdatesOnStartup } = useUpdater();
 
 const panels: Record<PanelKey, Component> = {
   connect: markRaw(ConnectPanel),
@@ -28,9 +30,11 @@ const showAddHost = ref(false);
 
 const LS_COLLAPSED = 'sshpf:sidebarCollapsed';
 
-onMounted(() => {
+onMounted(async () => {
   collapsed.value = localStorage.getItem(LS_COLLAPSED) === '1';
-  void load();
+  await load();
+  // 设置加载完成后，若 autoUpdate 已开启则检查更新
+  void checkForUpdatesOnStartup();
 });
 
 function toggleCollapsed(): void {
