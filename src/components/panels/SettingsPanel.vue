@@ -67,14 +67,17 @@ onActivated(() => void load());
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 .card {
+  flex: 0 0 auto;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--panel-shadow);
   overflow: hidden;
-  max-width: 560px;
 }
 .card-head {
   padding: 12px 16px;
