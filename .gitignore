@@ -25,3 +25,18 @@ dist-ssr
 # 本地工具缓存
 .mimosa/
 .zcode/
+
+# Rust / Tauri 构建产物
+target/
+src-tauri/gen/schemas/
+
+# 敏感数据文件（防止意外提交）
+*.db
+*.sqlite
+*.sqlite3
+encryption.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519

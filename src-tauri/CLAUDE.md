@@ -159,6 +159,6 @@ npm run tauri dev  # 在仓库根目录启动开发态应用
 ## 注意事项
 
 - 不要改 `Cargo.toml` 里 tauri 2 全家桶的版本策略（固定 major 版本）。
-- 密码明文存于 DB（本地工具可接受）；后续如需增强改为系统钥匙串。
+- 敏感字段（password / key_path / passphrase）落库前经 `crypto::encrypt`（AES-256-GCM）加密；主密钥随机生成并存储于应用数据目录的 `encryption.key`。
 - 命令返回错误统一 `Err(String)`，中文文案，db_err 前缀标注数据库上下文。
 - 新增/修改 SQL 后必须同步 `001_init.sql`，保持“建表即可运行”一致。
